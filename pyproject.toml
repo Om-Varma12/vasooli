@@ -1,0 +1,15 @@
+[project]
+name = "vasooli"
+version = "0.1.0"
+description = "Bounded, multi-channel revenue recovery agent for UPI Autopay / eNACH / B2B receivables"
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+prod = ["anthropic", "requests", "fastapi", "uvicorn", "redis"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

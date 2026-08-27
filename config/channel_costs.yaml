@@ -1,0 +1,16 @@
+# config/channel_costs.yaml
+#
+# Single source of truth for channel cost assumptions. Both the decide layer's cost gate
+# (should we even attempt voice on this record?) and the report layer's cost-per-recovered-
+# rupee metric read from here — previously these were two separate hardcoded constants in
+# two files that could silently drift apart. Replace these with real vendor pricing as soon
+# as you have a WhatsApp Business API plan and a telephony/voice vendor quote.
+
+version: 1
+updated: "2026-08-27"
+
+assumed_cost_inr:
+  retry: 0.0
+  whatsapp: 0.50
+  voice: 15.00
+  human_handoff: 0.0

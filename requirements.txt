@@ -1,0 +1,8 @@
+pyyaml>=6.0
+
+# Add these as you wire real integrations:
+# anthropic          # for classify/llm_classifier.py + voice conversation generation
+# requests           # for real Razorpay API calls + WhatsApp Business API
+# fastapi, uvicorn   # for the real webhook listener (Day 6, src/vasooli/ingest/)
+# redis              # for dedupe_store.py + queue.py (Day 6)
+# pytest             # for tests/ — or use requirements-dev.txt

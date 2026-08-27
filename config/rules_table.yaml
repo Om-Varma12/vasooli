@@ -1,0 +1,80 @@
+# config/rules_table.yaml
+#
+# This is what the decide layer actually consults. It maps a classified root cause to an
+# action. A reviewer should be able to read this file top to bottom and understand every
+# non-guarded decision the system can make, without opening any code.
+#
+# WHAT IS DELIBERATELY *NOT* IN HERE:
+#   - The NPCI retry ceiling and the DND/consent hard-stop are NOT rules in this table.
+#     They live in src/vasooli/decide/guard_clauses.py as Python constants, checked before
+#     this file is even loaded. That's not an oversight — it's the compliance argument.
+#     A rule in a YAML file is something a well-meaning ops person could edit at 11pm to hit
+#     a recovery target. The retry ceiling and DND check must not be editable that way, so
+#     they are structurally outside this file's reach. Don't "fix" this by moving them in.
+#
+# Edit this file to tune behavior. Bump `version` and update `updated` whenever you do, and
+# say so in the PR/commit — this file's edit history IS an audit trail of policy changes.
+
+version: 1
+updated: "2026-08-27"
+
+rules:
+  - match:
+      root_cause: insufficient_funds
+    action:
+      tier: retry
+      # minutes to wait before each successive retry attempt (index = attempt number)
+      retry_delay_minutes_by_attempt: [30, 240, 720]
+      reason_template: "Transient cause (insufficient_funds); scheduling smart-timed retry."
+
+  - match:
+      root_cause: bank_downtime
+    action:
+      tier: retry
+      retry_delay_minutes_by_attempt: [30, 240, 720]
+      reason_template: "Transient cause (bank_downtime); scheduling smart-timed retry."
+
+  - match:
+      root_cause: risk_block
+    action:
+      tier: human_handoff
+      reason_template: >-
+        Risk block is not retry-worthy or contact-worthy on its own — routed to a human
+        risk reviewer rather than auto-retried or auto-contacted.
+
+  - match:
+      root_cause: mandate_expired
+    action:
+      tier: whatsapp
+      then_evaluate_voice_escalation: true
+      reason_template: >-
+        Root cause 'mandate_expired' is not auto-retry-worthy; sending a templated
+        WhatsApp re-authorization nudge, then evaluating voice escalation.
+
+  - match:
+      root_cause: unknown
+    action:
+      tier: whatsapp
+      then_evaluate_voice_escalation: true
+      reason_template: >-
+        Root cause could not be classified by rule or LLM with sufficient confidence;
+        defaulting to a WhatsApp nudge and evaluating voice escalation.
+
+  # No entry for cancellation_intent on purpose: it never reaches this table. It's caught
+  # by the cancellation gate in the classify layer AND re-checked as decide-layer guard
+  # clause #1, before this file is consulted. See guard_clauses.py.
+
+# Voice escalation is evaluated only for records this table routes to `whatsapp` with
+# `then_evaluate_voice_escalation: true`. It is its own gated sub-decision, not a tier a
+# root cause maps to directly, because it depends on account attributes (risk tier, amount,
+# DND, expected recovery vs. cost) rather than root cause alone.
+voice_escalation:
+  eligible_risk_tiers: [high_value]
+  min_amount_inr: 3000.0
+  recovery_probability_by_cause:
+    insufficient_funds: 0.55
+    bank_downtime: 0.70
+    mandate_expired: 0.25
+    risk_block: 0.10
+    cancellation_intent: 0.0
+    unknown: 0.20
