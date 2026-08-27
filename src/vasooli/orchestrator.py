@@ -9,11 +9,13 @@ that's deliberate, so nothing about classify/decide/execute/audit needs to chang
 ingest goes from "read a JSON file" to "consume a live queue."
 """
 import json
+import logging
 from pathlib import Path
 from . import classify as classify_layer
 from .decide import decide
 from .execute import execute
 from .audit.audit_log import AuditLog
+from .audit.dead_letter import write as dlq_write
 from .models import FailureEvent
 
 BATCH_PATH = Path(__file__).parent.parent.parent / "data" / "failed_payments_batch.json"
@@ -51,6 +53,34 @@ def run_one(event: FailureEvent, audit: AuditLog) -> dict:
 
 
 def run_batch(path: Path = BATCH_PATH) -> list[dict]:
+    """
+    Process all events in the batch. Per-record exceptions are caught and written
+    to the DLQ — one bad record no longer aborts the whole batch.
+    """
     audit = AuditLog()
     events = load_batch(path)
-    return [run_one(e, audit) for e in events]
+    results = []
+    for event in events:
+        try:
+            results.append(run_one(event, audit))
+        except Exception as exc:
+            logging.error(f"[orchestrator] unhandled error for {event.record_id}: {exc}")
+            dlq_write(
+                record_id=event.record_id,
+                stage="orchestrator",
+                error=str(exc),
+            )
+            # Include a placeholder result so report totals stay consistent.
+            results.append({
+                "record_id": event.record_id,
+                "merchant_id": event.merchant_id,
+                "category": event.category,
+                "root_cause": "unknown",
+                "tier": "human_handoff",
+                "amount_inr": event.amount_inr,
+                "channel": "dlq",
+                "succeeded": False,
+                "amount_recovered_inr": 0.0,
+                "detail": f"Unhandled exception — written to DLQ: {exc}",
+            })
+    return results
