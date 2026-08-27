@@ -38,18 +38,19 @@ def enqueue(payload: dict) -> None:
     _local_queue.put(payload)
 
 
-def dequeue() -> dict | None:
+def dequeue(timeout: int = 5) -> dict | None:
     if _redis_client:
         try:
-            data = _redis_client.lpop(QUEUE_NAME)
-            if data:
+            res = _redis_client.blpop(QUEUE_NAME, timeout=timeout)
+            if res:
+                _, data = res
                 return json.loads(data)
             return None
         except Exception as e:
-            logging.error(f"Redis dequeue failed: {e}. Falling back to local Queue.")
+            logging.error(f"Redis blpop failed: {e}. Falling back to local Queue.")
     
     try:
-        return _local_queue.get_nowait()
+        return _local_queue.get(timeout=timeout)
     except queue.Empty:
         return None
 
