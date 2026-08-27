@@ -14,5 +14,12 @@ Real implementation (once WEBHOOK_SECRET is in env config):
 """
 
 
-def verify_signature(body: bytes, signature: str, secret: str = "") -> bool:
-    raise NotImplementedError("Signature verification not yet wired — see module docstring.")
+import hmac
+import hashlib
+
+def verify_signature(body: bytes, signature: str, secret: str) -> bool:
+    if not secret:
+        return False
+    expected = hmac.new(secret.encode('utf-8'), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
