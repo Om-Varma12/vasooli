@@ -32,14 +32,28 @@ async def receive(request: Request):
     except Exception:
         raise HTTPException(status_code=400, detail="invalid json payload")
 
-    event_id = payload.get("id") or payload.get("event_id")
-    if not event_id:
-        raise HTTPException(status_code=400, detail="missing event identifier")
+    # Razorpay's real webhook format does NOT have a top-level "id".
+    # The entity ID is nested inside payload -> payment/subscription/invoice -> entity -> id.
+    # We build a stable dedup key from multiple fallback locations.
+    inner = payload.get("payload", {})
+    entity_id = None
+    for key in ("payment", "subscription", "invoice", "order"):
+        entity_id = inner.get(key, {}).get("entity", {}).get("id")
+        if entity_id:
+            break
+
+    event_id = (
+        entity_id
+        or payload.get("id")
+        or payload.get("event_id")
+        or f"{payload.get('event','unknown')}_{payload.get('account_id','')}_{payload.get('created_at','')}"
+    )
 
     if already_processed(event_id):
         return {"status": "duplicate, ignored"}
 
     mark_processed(event_id)
     enqueue(payload)
-    
-    return {"status": "queued"}
+
+    return {"status": "queued", "event": payload.get("event"), "entity_id": entity_id}
+
