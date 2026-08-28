@@ -86,7 +86,17 @@ def evaluate_voice_escalation(event: FailureEvent, root_cause: RootCause, config
             "before the cost gate, not config-driven, no exceptions."
         ), None
 
+    # Check historical response rate to avoid spamming voice when it has zero response history
+    voice_attempts = event.channel_response_rates.get("voice_attempts", 0)
+    voice_successes = event.channel_response_rates.get("voice_successes", 0)
+    if voice_attempts >= 2 and voice_successes == 0:
+        return False, (
+            f"Voice not offered: historical voice response rate is 0% over {voice_attempts} attempts. "
+            "Blocking voice to avoid telephony cost with zero expected recovery."
+        ), None
+
     if event.customer_risk_tier not in v["eligible_risk_tiers"]:
+
         return False, (
             f"Voice not offered: customer_risk_tier='{event.customer_risk_tier}' below the "
             f"{v['eligible_risk_tiers']} threshold."
