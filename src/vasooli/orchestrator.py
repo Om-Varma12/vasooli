@@ -17,6 +17,7 @@ from .execute import execute
 from .audit.audit_log import AuditLog
 from .audit.dead_letter import write as dlq_write
 from .models import FailureEvent
+from .enrichment.account_history import get_history, record_bounce, record_outcome
 
 BATCH_PATH = Path(__file__).parent.parent.parent / "data" / "failed_payments_batch.json"
 
@@ -28,6 +29,16 @@ def load_batch(path: Path = BATCH_PATH) -> list[FailureEvent]:
 
 
 def run_one(event: FailureEvent, audit: AuditLog) -> dict:
+    # 1. Fetch historical context for this customer
+    history = get_history(event.customer_id)
+    event.past_bounce_count = history["past_bounce_count"]
+    event.past_bounce_reasons = history["past_bounce_reasons"]
+    event.last_successful_charge_date = history["last_successful_charge_date"]
+    event.channel_response_rates = history["channel_response_rates"]
+
+    # 2. Record this bounce in the database
+    record_bounce(event.customer_id, event.reason_code)
+
     root_cause, classify_reason, confidence, source = classify_layer.classify(event)
     audit.write(event.record_id, "classify", f"[{source}, confidence={confidence:.2f}] {classify_reason}")
 
@@ -40,6 +51,10 @@ def run_one(event: FailureEvent, audit: AuditLog) -> dict:
         event.record_id, "outcome",
         f"succeeded={result['succeeded']} amount_recovered_inr={result['amount_recovered_inr']}",
     )
+
+    # 3. Record execution outcome
+    record_outcome(event.customer_id, result["channel"], result["succeeded"])
+
 
     return {
         "record_id": event.record_id,
