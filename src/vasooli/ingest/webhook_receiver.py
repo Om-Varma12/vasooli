@@ -4,12 +4,18 @@ Verifies payload signature, deduplicates incoming events, and enqueues them for 
 """
 import os
 import sys
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException
 from .signature import verify_signature
 from .dedupe_store import already_processed, mark_processed
 from .queue import enqueue
 
+# Load .env so RAZORPAY_WEBHOOK_SECRET and other vars are available even when
+# the server is started directly with uvicorn (not via a shell that already exports them).
+load_dotenv()
+
 app = FastAPI(title="Vasooli Ingest API")
+
 
 
 @app.post("/webhooks/razorpay")
