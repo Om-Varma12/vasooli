@@ -55,6 +55,11 @@ class FailureEvent:
     dnd_flag: bool
     days_overdue: int = 0                  # only meaningful for B2B_RECEIVABLE
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    past_bounce_count: int = 0
+    past_bounce_reasons: list[str] = field(default_factory=list)
+    last_successful_charge_date: Optional[str] = None
+    channel_response_rates: dict[str, int] = field(default_factory=dict)
+
 
 
 @dataclass
