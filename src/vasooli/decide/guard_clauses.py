@@ -67,8 +67,30 @@ def run_guard_clauses(event: FailureEvent, root_cause: RootCause) -> Decision | 
     """Runs all short-circuiting guard clauses in order. Returns a Decision if one fires,
     else None (meaning: proceed to the rules table).
     """
-    for guard in (check_cancellation, check_retry_ceiling):
+    for guard in (check_cancellation, check_retry_ceiling, check_chronic_bouncer):
         result = guard(event, root_cause)
         if result is not None:
             return result
     return None
+
+
+def check_chronic_bouncer(event: FailureEvent, root_cause: RootCause) -> Decision | None:
+    """Guard clause #3. Bypasses auto-retry for chronic bouncers (past_bounce_count >= 3)
+    to prevent transaction fee waste, escalating to WhatsApp nudge directly.
+    """
+    if event.past_bounce_count < 3:
+        return None
+
+    if root_cause in (RootCause.INSUFFICIENT_FUNDS, RootCause.BANK_DOWNTIME):
+        return Decision(
+            record_id=event.record_id,
+            root_cause=root_cause,
+            tier=Tier.WHATSAPP,
+            reason=(
+                f"Chronic bouncer (past_bounce_count={event.past_bounce_count} >= 3) with transient cause "
+                f"'{root_cause.value}'. Bypassing auto-retry to prevent transaction costs; escalating to WhatsApp nudge."
+            ),
+            blocked_by="chronic_bouncer_escalation",
+        )
+    return None
+
