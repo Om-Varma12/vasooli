@@ -114,42 +114,108 @@ def parse_webhook_to_event(payload: dict) -> FailureEvent:
     )
 
 
+import concurrent.futures
+import signal
+
+shutdown_requested = False
+active_futures = set()
+
+
+def signal_handler(signum, frame):
+    global shutdown_requested
+    logging.info(f"Signal {signum} received. Requesting graceful shutdown...")
+    shutdown_requested = True
+
+
+MAX_WORKER_RETRIES = 3
+
+
+def is_transient_error(exception: Exception) -> bool:
+    err_str = str(exception).lower()
+    transient_indicators = [
+        "timeout", "timed out", "connection error", "connection refused",
+        "502", "503", "504", "rate limit", "busy", "lock", "temporary", "retry"
+    ]
+    return any(indicator in err_str for indicator in transient_indicators)
+
+
+def process_event_payload(payload: dict, audit: AuditLog) -> None:
+    retries = payload.get("worker_retry_count", 0)
+    try:
+        event = parse_webhook_to_event(payload)
+        run_one(event, audit)
+    except Exception as e:
+        if is_transient_error(e) and retries < MAX_WORKER_RETRIES:
+            payload["worker_retry_count"] = retries + 1
+            backoff_seconds = 2 ** retries
+            logging.warning(
+                f"Transient error processing event {payload.get('id', 'unknown')}: {e}. "
+                f"Retrying in {backoff_seconds}s (attempt {retries + 1}/{MAX_WORKER_RETRIES})."
+            )
+            time.sleep(backoff_seconds)
+            from .ingest.queue import enqueue
+            enqueue(payload)
+        else:
+            logging.error(
+                f"Terminal/exhausted error processing event {payload.get('id', 'unknown')}: {e}"
+            )
+            try:
+                from .audit.dead_letter import write as dlq_write
+                dlq_write(record_id=payload.get('id', 'unknown'), stage="worker", error=str(e))
+            except Exception:
+                pass
+
+
 def process_next_event(audit: AuditLog) -> bool:
     """
     Pulls next event from queue and processes it.
     Returns True if an event was processed, False if queue is empty.
     """
-    payload = dequeue()
+    payload = dequeue(timeout=1)
     if payload is None:
         return False
     
-    try:
-        event = parse_webhook_to_event(payload)
-        run_one(event, audit)
-    except Exception as e:
-        logging.error(f"Error processing event {payload.get('id', 'unknown')}: {e}")
-        # Routing to dead letter stub
-        try:
-            from .audit.dead_letter import write as dlq_write
-            dlq_write(record_id=payload.get("id", "unknown"), stage="worker", error=str(e))
-        except Exception:
-            pass
-            
+    process_event_payload(payload, audit)
     return True
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    global shutdown_requested
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(threadName)s: %(message)s"
+    )
     logging.info("Starting Vasooli Queue Worker...")
-    audit = AuditLog()
     
-    try:
-        while True:
-            processed = process_next_event(audit)
-            if not processed:
-                time.sleep(1)
-    except KeyboardInterrupt:
-        logging.info("Stopping worker...")
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    if hasattr(signal, "SIGBREAK"):
+        signal.signal(signal.SIGBREAK, signal_handler)
+        
+    audit = AuditLog()
+    max_workers = 4
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="Worker") as executor:
+        while not shutdown_requested:
+            completed = {f for f in active_futures if f.done()}
+            active_futures.difference_update(completed)
+            
+            if len(active_futures) >= max_workers:
+                concurrent.futures.wait(active_futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                continue
+                
+            payload = dequeue(timeout=1)
+            if payload is None:
+                continue
+                
+            logging.info(f"Dequeued event {payload.get('id', 'unknown')}, submitting to worker pool.")
+            future = executor.submit(process_event_payload, payload, audit)
+            active_futures.add(future)
+            
+        logging.info("Graceful shutdown initiated. Waiting for active tasks to complete...")
+        executor.shutdown(wait=True)
+        logging.info("All tasks completed. Worker stopped.")
+
 
 
 if __name__ == "__main__":

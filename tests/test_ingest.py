@@ -51,20 +51,20 @@ def test_queue_enqueue_dequeue():
     
     # Ensure dequeue returns None when empty
     # We drain the queue first in case there is leftovers
-    while dequeue() is not None:
+    while dequeue(timeout=0) is not None:
         pass
         
-    assert dequeue() is None
+    assert dequeue(timeout=0) is None
     
     # Enqueue payload
     enqueue(payload)
     
     # Dequeue it
-    retrieved = dequeue()
+    retrieved = dequeue(timeout=0)
     assert retrieved == payload
     
     # Queue should now be empty again
-    assert dequeue() is None
+    assert dequeue(timeout=0) is None
 
 
 def test_webhook_receiver_endpoint(monkeypatch):
@@ -173,7 +173,7 @@ def test_worker_processing(tmp_path):
     audit = AuditLog(path=tmp_path / "worker_test_audit.jsonl")
     
     # Drain queue first
-    while dequeue() is not None:
+    while dequeue(timeout=0) is not None:
         pass
         
     # Enqueue a mock payload
@@ -207,3 +207,110 @@ def test_worker_processing(tmp_path):
     
     # Ensure queue is now empty
     assert process_next_event(audit) is False
+
+
+def test_dequeue_timeout():
+    # Drain queue first
+    while dequeue(timeout=0) is not None:
+        pass
+        
+    import time
+    start_time = time.time()
+    result = dequeue(timeout=1)
+    duration = time.time() - start_time
+    
+    assert result is None
+    assert duration >= 0.9
+
+
+def test_worker_transient_retry(tmp_path, monkeypatch):
+    import time
+    from vasooli.audit.audit_log import AuditLog
+    
+    audit = AuditLog(path=tmp_path / "transient_test_audit.jsonl")
+    
+    # Drain queue
+    while dequeue(timeout=0) is not None:
+        pass
+        
+    payload = {
+        "id": "evt_transient_retry_test",
+        "webhook_event": "payment.failed",
+        "amount_inr": 100.0,
+        "reason_code": "insufficient_funds"
+    }
+    enqueue(payload)
+    
+    # Mock run_one to throw a transient error
+    def mock_run_one_transient(event, audit_log):
+        raise ConnectionError("Temporary connection refused by peer")
+        
+    import vasooli.worker
+    monkeypatch.setattr(vasooli.worker, "run_one", mock_run_one_transient)
+    
+    # Mock sleep so the test runs instantly
+    sleep_called_with = []
+    monkeypatch.setattr(time, "sleep", lambda s: sleep_called_with.append(s))
+    
+    # Process event
+    processed = process_next_event(audit)
+    assert processed is True
+    
+    # Verify it was re-enqueued with worker_retry_count = 1
+    re_enqueued = dequeue(timeout=0)
+    assert re_enqueued is not None
+    assert re_enqueued["worker_retry_count"] == 1
+    assert len(sleep_called_with) == 1
+    assert sleep_called_with[0] == 1  # 2 ** 0 = 1
+
+
+def test_worker_terminal_error_dlq(tmp_path, monkeypatch):
+    from vasooli.audit.audit_log import AuditLog
+    
+    audit = AuditLog(path=tmp_path / "terminal_test_audit.jsonl")
+    
+    # Drain queue
+    while dequeue(timeout=0) is not None:
+        pass
+        
+    payload = {
+        "id": "evt_terminal_error_test",
+        "webhook_event": "payment.failed",
+        "amount_inr": 100.0,
+        "reason_code": "insufficient_funds"
+    }
+    enqueue(payload)
+    
+    # Mock run_one to throw a terminal error (ValueError)
+    def mock_run_one_terminal(event, audit_log):
+        raise ValueError("Invalid configuration parameters specified")
+        
+    import vasooli.worker
+    monkeypatch.setattr(vasooli.worker, "run_one", mock_run_one_terminal)
+    
+    # Mock DLQ file path
+    dlq_file = tmp_path / "test_dlq.jsonl"
+    
+    from vasooli.audit.dead_letter import write as original_write
+
+    def mock_dlq_write(record_id, stage, error, path=dlq_file):
+        original_write(record_id, stage, error, path=path)
+        
+    import vasooli.audit.dead_letter
+    monkeypatch.setattr(vasooli.audit.dead_letter, "write", mock_dlq_write)
+    
+    processed = process_next_event(audit)
+    assert processed is True
+    
+    # Dequeue should be empty (no re-enqueueing)
+    assert dequeue(timeout=0) is None
+    
+    # Verify DLQ entry was written
+    assert dlq_file.exists()
+    dlq_lines = dlq_file.read_text().splitlines()
+    assert len(dlq_lines) == 1
+    dlq_data = json.loads(dlq_lines[0])
+    assert dlq_data["record_id"] == "evt_terminal_error_test"
+    assert dlq_data["stage"] == "worker"
+    assert "ValueError" in dlq_data["error"] or "Invalid configuration" in dlq_data["error"]
+
