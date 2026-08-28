@@ -22,6 +22,9 @@ logger = logging.getLogger("vasooli.ingest")
 
 app = FastAPI(title="Vasooli Ingest API")
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 @app.post("/webhooks/razorpay")
 async def receive(request: Request):

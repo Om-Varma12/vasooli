@@ -5,5 +5,7 @@ venv/
 data/failed_payments_batch.json
 data/audit_log.jsonl
 
-
+.agents/
+.claude/
+skills-lock.json
 cmds.txt
