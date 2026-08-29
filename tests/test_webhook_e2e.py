@@ -375,12 +375,12 @@ class TestFullPipeline:
 
         # 3. Audit trail was written
         trail = audit.for_record(unique_id)
-        stages = {entry["stage"] for entry in trail}
-        assert "classify" in stages, f"classify stage missing. Trail: {trail}"
-        assert "policy" in stages, f"policy stage missing. Trail: {trail}"
-        assert any(s.startswith("execute:") for s in stages), \
-            f"execute stage missing. Trail: {trail}"
-        assert "outcome" in stages, f"outcome stage missing. Trail: {trail}"
+        steps = {entry["step"] for entry in trail}
+        assert "classify" in steps, f"classify step missing. Trail: {trail}"
+        assert "policy" in steps, f"policy step missing. Trail: {trail}"
+        assert any(s.startswith("execute:") for s in steps), \
+            f"execute step missing. Trail: {trail}"
+        assert "outcome" in steps, f"outcome step missing. Trail: {trail}"
 
         # 4. Queue is now empty
         assert process_next_event(audit) is False
@@ -435,8 +435,8 @@ class TestFullPipeline:
         assert processed is True
 
         trail = audit.for_record(unique_id)
-        assert any("execute:" in e["stage"] for e in trail), \
-            "Execute stage missing for DND customer"
+        assert any("execute:" in e["step"] for e in trail), \
+            "Execute step missing for DND customer"
 
     def test_pipeline_concurrent_events(self, tmp_path):
         """Multiple distinct events processed sequentially all produce audit trails."""
