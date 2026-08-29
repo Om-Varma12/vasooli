@@ -1,65 +1,66 @@
 """
-STATUS: stub, Day 6. Abstraction over whatever queue backs the async handoff between
-webhook_receiver.py (producer) and worker.py (consumer) — Redis list, SQS, or Celery are all
-fine choices; keep this interface stable so swapping the backend later doesn't touch the
-handler or the worker.
+Redis-backed queue for async handoff between webhook_receiver.py (producer) and worker.py (consumer).
+This ensures that multiple processes (Receiver and Worker) can communicate via a shared broker.
 """
-
 
 import os
 import json
 import logging
-import queue
+from dotenv import load_dotenv
+
+# Load .env to ensure REDIS_URL is available
+load_dotenv()
 
 REDIS_URL = os.environ.get("REDIS_URL")
-_redis_client = None
 QUEUE_NAME = "vasooli_webhook_queue"
+_redis_client = None
 
-if REDIS_URL:
+def _get_client():
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
+
+    if not REDIS_URL:
+        raise RuntimeError(
+            "REDIS_URL environment variable is not set. "
+            "Vasooli requires Redis for cross-process communication between Receiver and Worker."
+        )
+
     try:
         import redis
-        _redis_client = redis.Redis.from_url(REDIS_URL)
-        _redis_client.ping()
+        client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+        client.ping()
+        _redis_client = client
+        return _redis_client
     except Exception as e:
-        logging.warning(f"Failed to connect to Redis at {REDIS_URL} for queue, falling back to local Queue: {e}")
-        _redis_client = None
-
-_local_queue = queue.Queue()
-
+        raise RuntimeError(f"Could not connect to Redis at {REDIS_URL}: {e}")
 
 def enqueue(payload: dict) -> None:
-    if _redis_client:
-        try:
-            _redis_client.rpush(QUEUE_NAME, json.dumps(payload))
-            return
-        except Exception as e:
-            logging.error(f"Redis enqueue failed: {e}. Falling back to local Queue.")
-    
-    _local_queue.put(payload)
-
+    """Pushes a webhook payload to the Redis list."""
+    client = _get_client()
+    try:
+        client.rpush(QUEUE_NAME, json.dumps(payload))
+    except Exception as e:
+        logging.error(f"Redis enqueue failed: {e}")
+        raise
 
 def dequeue(timeout: int = 5) -> dict | None:
-    if _redis_client:
-        try:
-            if timeout == 0:
-                data = _redis_client.lpop(QUEUE_NAME)
-                if data:
-                    return json.loads(data)
-                return None
-            else:
-                res = _redis_client.blpop(QUEUE_NAME, timeout=timeout)
-                if res:
-                    _, data = res
-                    return json.loads(data)
-                return None
-        except Exception as e:
-            logging.error(f"Redis pop failed: {e}. Falling back to local Queue.")
-    
+    """
+    Pops the next event from the Redis list.
+    Uses BLPOP for efficient blocking wait.
+    """
+    client = _get_client()
     try:
         if timeout == 0:
-            return _local_queue.get_nowait()
-        else:
-            return _local_queue.get(timeout=timeout)
-    except (queue.Empty, ValueError):
-        return None
+            data = client.lpop(QUEUE_NAME)
+            return json.loads(data) if data else None
 
+        # blpop returns (key, value)
+        res = client.blpop(QUEUE_NAME, timeout=timeout)
+        if res:
+            _, data = res
+            return json.loads(data)
+        return None
+    except Exception as e:
+        logging.error(f"Redis dequeue failed: {e}")
+        return None

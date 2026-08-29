@@ -1,63 +1,62 @@
 """
-STATUS: stub, Day 6. Razorpay delivers webhooks at-least-once, retrying failed deliveries
-with exponential backoff for 24 hours — so the same event WILL arrive more than once under
-normal operation, not just as an edge case. Dedupe on Razorpay's event ID before any
-downstream processing, or a slow response under load causes duplicate WhatsApp sends or
-duplicate voice calls to the same customer.
-
-Real implementation: Redis SETNX with a short TTL (a few days covers the 24h retry window
-with margin), or a DB unique constraint on event_id if you don't want a Redis dependency yet.
-
-    import redis
-    r = redis.Redis()
-
-    def already_processed(event_id: str) -> bool:
-        return not r.set(f"seen:{event_id}", "1", nx=True, ex=60 * 60 * 24 * 3)  # 3-day TTL
+Redis-backed deduplication store.
+Razorpay delivers webhooks at-least-once; we use Redis SETNX with a short TTL
+to ensure a single event is not processed multiple times across multiple receiver instances.
 """
 
 import os
 import logging
-from threading import Lock
+from dotenv import load_dotenv
+
+# Load .env to ensure REDIS_URL is available
+load_dotenv()
 
 REDIS_URL = os.environ.get("REDIS_URL")
 _redis_client = None
 
-if REDIS_URL:
+def _get_client():
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
+
+    if not REDIS_URL:
+        raise RuntimeError(
+            "REDIS_URL environment variable is not set. "
+            "Vasooli requires Redis for cross-process deduplication."
+        )
+
     try:
         import redis
-        _redis_client = redis.Redis.from_url(REDIS_URL)
-        _redis_client.ping()
+        client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+        client.ping()
+        _redis_client = client
+        return _redis_client
     except Exception as e:
-        logging.warning(f"Failed to connect to Redis at {REDIS_URL}, falling back to in-memory: {e}")
-        _redis_client = None
-
-_seen_in_memory = set()
-_lock = Lock()
-
+        raise RuntimeError(f"Could not connect to Redis at {REDIS_URL}: {e}")
 
 def already_processed(event_id: str) -> bool:
+    """Checks if an event has already been processed using Redis."""
     if not event_id:
         return False
-    if _redis_client:
-        try:
-            return bool(_redis_client.exists(f"seen:{event_id}"))
-        except Exception as e:
-            logging.error(f"Redis check failed: {e}. Falling back to in-memory check.")
-    
-    with _lock:
-        return event_id in _seen_in_memory
 
+    client = _get_client()
+    try:
+        # If the key exists, it's already been processed
+        return bool(client.exists(f"seen:{event_id}"))
+    except Exception as e:
+        logging.error(f"Redis dedupe check failed: {e}")
+        # In a real production system, you might decide whether to fail-open or fail-closed.
+        # Here we log the error and return False to avoid blocking genuine events.
+        return False
 
 def mark_processed(event_id: str) -> None:
+    """Marks an event as processed in Redis with a 3-day TTL."""
     if not event_id:
         return
-    if _redis_client:
-        try:
-            _redis_client.set(f"seen:{event_id}", "1", ex=60 * 60 * 24 * 3)  # 3-day TTL
-            return
-        except Exception as e:
-            logging.error(f"Redis mark failed: {e}. Falling back to in-memory mark.")
-            
-    with _lock:
-        _seen_in_memory.add(event_id)
 
+    client = _get_client()
+    try:
+        # Set key with 3-day TTL (60*60*24*3)
+        client.set(f"seen:{event_id}", "1", ex=60 * 60 * 24 * 3)
+    except Exception as e:
+        logging.error(f"Redis dedupe mark failed: {e}")

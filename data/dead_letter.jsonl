@@ -1,1 +1,11 @@
 {"record_id": "rec_bad", "stage": "orchestrator", "error": "Simulated pipeline crash", "payload": null, "timestamp": "2026-08-27T17:30:53.564354+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "LLM classification parsing failed. Raw response: 'This is not a JSON object at all.'. Error: Expecting value: line 1 column 1 (char 0)", "payload": null, "timestamp": "2026-08-29T11:29:35.213041+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "Groq API call failed: API rate limit exceeded", "payload": null, "timestamp": "2026-08-29T11:29:35.214384+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "LLM classification parsing failed. Raw response: 'This is not a JSON object at all.'. Error: Expecting value: line 1 column 1 (char 0)", "payload": null, "timestamp": "2026-08-29T11:31:25.193047+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "Groq API call failed: API rate limit exceeded", "payload": null, "timestamp": "2026-08-29T11:31:25.197863+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "LLM classification parsing failed. Raw response: 'This is not a JSON object at all.'. Error: Expecting value: line 1 column 1 (char 0)", "payload": null, "timestamp": "2026-08-29T12:17:38.329197+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "Groq API call failed: API rate limit exceeded", "payload": null, "timestamp": "2026-08-29T12:17:38.330632+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "LLM classification parsing failed. Raw response: 'This is not a JSON object at all.'. Error: Expecting value: line 1 column 1 (char 0)", "payload": null, "timestamp": "2026-08-29T12:21:39.101006+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "Groq API call failed: API rate limit exceeded", "payload": null, "timestamp": "2026-08-29T12:21:39.103744+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "LLM classification parsing failed. Raw response: 'This is not a JSON object at all.'. Error: Expecting value: line 1 column 1 (char 0)", "payload": null, "timestamp": "2026-08-29T12:51:23.194048+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "Groq API call failed: API rate limit exceeded", "payload": null, "timestamp": "2026-08-29T12:51:23.196758+00:00"}

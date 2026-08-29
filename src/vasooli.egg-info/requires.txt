@@ -1,0 +1,15 @@
+pyyaml>=6.0
+psycopg2-binary>=2.9.0
+python-dotenv>=1.0.0
+groq>=1.1.2
+twilio>=8.0.0
+
+[dev]
+pytest>=7.0
+
+[prod]
+anthropic
+requests
+fastapi
+uvicorn
+redis

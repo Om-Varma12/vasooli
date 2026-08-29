@@ -208,7 +208,7 @@ def main():
             if payload is None:
                 continue
                 
-            logging.info(f"Dequeued event {payload.get('id', 'unknown')}, submitting to worker pool.")
+            logging.info(f"Dequeued event {payload.get('id', 'unknown')} - Payload: {payload}, submitting to worker pool.")
             future = executor.submit(process_event_payload, payload, audit)
             active_futures.add(future)
             

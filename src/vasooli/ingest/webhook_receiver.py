@@ -63,9 +63,22 @@ async def receive(request: Request):
             entity_data = candidate
             break
 
+    # To support both E2E tests (which pass a top-level "id") and real Razorpay payloads
+    # (which omit top-level "id" but contain a nested entity id), we construct a stable event_id.
     event_id = payload.get("id") or payload.get("event_id")
+    
+    if not event_id and entity_id:
+        # For real Razorpay webhooks, use the entity ID + event type to ensure uniqueness
+        # (e.g., pay_xxx_payment.failed vs pay_xxx_payment.captured)
+        event_id = f"{entity_id}_{payload.get('event', 'unknown')}"
+        
     if not event_id:
-        logger.error(f"Missing event identifier (id or event_id) in payload: {payload}")
+        # Final fallback using metadata (only if account_id or created_at exists)
+        if payload.get("account_id") or payload.get("created_at"):
+            event_id = f"{payload.get('event','unknown')}_{payload.get('account_id','')}_{payload.get('created_at','')}"
+
+    if not event_id or event_id.strip() == "":
+        logger.error(f"Missing event identifier in payload: {payload}")
         raise HTTPException(status_code=400, detail="missing event identifier")
 
     if already_processed(event_id):
