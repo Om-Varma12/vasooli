@@ -61,18 +61,15 @@ async def receive(request: Request):
             entity_data = candidate
             break
 
-    event_id = (
-        entity_id
-        or payload.get("id")
-        or payload.get("event_id")
-        or f"{payload.get('event','unknown')}_{payload.get('account_id','')}_{payload.get('created_at','')}"
-    )
+    event_id = payload.get("id") or payload.get("event_id")
+    if not event_id:
+        raise HTTPException(status_code=400, detail="missing event identifier")
 
     if already_processed(event_id):
         logger.info(json.dumps({
             "vasooli_event": "duplicate_ignored",
             "event_type": payload.get("event"),
-            "entity_id": entity_id,
+            "event_id": event_id,
             "account_id": payload.get("account_id"),
         }, indent=2))
         return {"status": "duplicate, ignored"}
@@ -103,4 +100,5 @@ async def receive(request: Request):
     mark_processed(event_id)
     enqueue(payload)
 
-    return {"status": "queued", "event": payload.get("event"), "entity_id": entity_id}
+    return {"status": "queued"}
+

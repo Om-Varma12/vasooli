@@ -1,8 +1,11 @@
 import sys
+import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+import pytest
 from vasooli.classify import classify, is_cancellation_intent
 from vasooli.classify.rules_classifier import classify_by_rule
 from vasooli.models import RootCause
@@ -50,12 +53,101 @@ def test_rule_tier_covers_known_reason_codes():
         assert cause == expected_cause
 
 
-def test_ambiguous_reason_code_falls_through_to_llm_tier():
+@patch("vasooli.classify.llm_classifier.Groq")
+def test_ambiguous_reason_code_falls_through_to_llm_tier_success(mock_groq, monkeypatch):
+    """Verify successful classification using Groq mock."""
+    monkeypatch.setenv("GROQ_API_KEY", "mock_key")
+    
+    # Configure mock Groq client response
+    mock_client = MagicMock()
+    mock_groq.return_value = mock_client
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps({
+        "cause": "bank_downtime",
+        "reason": "Temporary gateway response failure from NPCI PSP",
+        "confidence": 0.85
+    })
+    mock_client.chat.completions.create.return_value.choices = [mock_choice]
+
     event = make_event(reason_code="unclassified_bank_response")
     root_cause, reason, confidence, source = classify(event)
+
     assert source == "llm"
-    # current stub always returns UNKNOWN with 0 confidence — this test documents that,
-    # so it FAILS loudly (on purpose) once a real LLM call is wired in, forcing this
-    # assertion to be updated rather than silently going stale.
+    assert root_cause == RootCause.BANK_DOWNTIME
+    assert confidence == 0.85
+    assert "NPCI PSP" in reason
+
+
+@patch("vasooli.classify.llm_classifier.Groq")
+def test_llm_low_confidence_classification(mock_groq, monkeypatch):
+    """Verify that low-confidence results are handled correctly."""
+    monkeypatch.setenv("GROQ_API_KEY", "mock_key")
+    
+    mock_client = MagicMock()
+    mock_groq.return_value = mock_client
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps({
+        "cause": "insufficient_funds",
+        "reason": "Weak signal on balance check failure",
+        "confidence": 0.45
+    })
+    mock_client.chat.completions.create.return_value.choices = [mock_choice]
+
+    event = make_event(reason_code="unclassified_bank_response")
+    root_cause, reason, confidence, source = classify(event)
+
+    assert source == "llm"
+    assert root_cause == RootCause.INSUFFICIENT_FUNDS
+    assert confidence == 0.45
+    assert "below threshold" in reason
+
+
+@patch("vasooli.classify.llm_classifier.Groq")
+def test_llm_malformed_json_fallback(mock_groq, monkeypatch):
+    """Verify that malformed JSON from the LLM fails open gracefully."""
+    monkeypatch.setenv("GROQ_API_KEY", "mock_key")
+    
+    mock_client = MagicMock()
+    mock_groq.return_value = mock_client
+    mock_choice = MagicMock()
+    mock_choice.message.content = "This is not a JSON object at all."
+    mock_client.chat.completions.create.return_value.choices = [mock_choice]
+
+    event = make_event(reason_code="unclassified_bank_response")
+    root_cause, reason, confidence, source = classify(event)
+
+    assert source == "llm"
     assert root_cause == RootCause.UNKNOWN
     assert confidence == 0.0
+    assert "Parsing failed" in reason
+
+
+@patch("vasooli.classify.llm_classifier.Groq")
+def test_llm_api_error_fallback(mock_groq, monkeypatch):
+    """Verify that a Groq API exception fails open gracefully."""
+    monkeypatch.setenv("GROQ_API_KEY", "mock_key")
+    
+    mock_client = MagicMock()
+    mock_groq.return_value = mock_client
+    mock_client.chat.completions.create.side_effect = Exception("API rate limit exceeded")
+
+    event = make_event(reason_code="unclassified_bank_response")
+    root_cause, reason, confidence, source = classify(event)
+
+    assert source == "llm"
+    assert root_cause == RootCause.UNKNOWN
+    assert confidence == 0.0
+    assert "API call failed" in reason
+
+
+def test_llm_missing_api_key_fallback(monkeypatch):
+    """Verify that missing GROQ_API_KEY fails open immediately without making a call."""
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+    event = make_event(reason_code="unclassified_bank_response")
+    root_cause, reason, confidence, source = classify(event)
+
+    assert source == "llm"
+    assert root_cause == RootCause.UNKNOWN
+    assert confidence == 0.0
+    assert "missing" in reason
