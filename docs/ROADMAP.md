@@ -58,7 +58,7 @@ Last updated: 2026-08-28
 |---|---|---|
 | Cancellation intent gate (Tier 0 — always runs first) | ✅ Done | `src/vasooli/classify/cancellation_gate.py` |
 | Deterministic rules classifier (Tier 1 — ~92% of events) | ✅ Done | `src/vasooli/classify/rules_classifier.py` |
-| LLM fallback classifier (Tier 2) | 🔶 Stub | `src/vasooli/classify/llm_classifier.py` — `_call_llm()` returns UNKNOWN |
+| LLM fallback classifier (Tier 2) | ✅ Done | `src/vasooli/classify/llm_classifier.py` |
 | Low-confidence routing to human review queue | 🔶 Stub | `llm_classifier.py` — logged only, not routed |
 
 ---
