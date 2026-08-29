@@ -34,6 +34,7 @@ async def receive(request: Request):
     secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
     if secret:
         if not verify_signature(body, signature, secret):
+            logger.error(f"Webhook signature verification failed. secret={secret}, signature={signature}")
             raise HTTPException(status_code=400, detail="invalid signature")
     else:
         print(
@@ -43,7 +44,8 @@ async def receive(request: Request):
 
     try:
         payload = await request.json()
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to parse JSON payload: {e}")
         raise HTTPException(status_code=400, detail="invalid json payload")
 
     # Razorpay's real webhook format does NOT have a top-level "id".
@@ -63,6 +65,7 @@ async def receive(request: Request):
 
     event_id = payload.get("id") or payload.get("event_id")
     if not event_id:
+        logger.error(f"Missing event identifier (id or event_id) in payload: {payload}")
         raise HTTPException(status_code=400, detail="missing event identifier")
 
     if already_processed(event_id):
