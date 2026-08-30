@@ -33,13 +33,13 @@ vasooli/
 │   ├── models.py                    # ALL shared dataclasses/enums. Single source of truth
 │   │                                 # for what a FailureEvent/Decision/AuditEntry looks like.
 │   │
-│   ├── ingest/                      # STUB LAYER (Day 6) — turning a webhook into a FailureEvent
-│   │   ├── webhook_receiver.py      #   FastAPI handler sketch: verify -> dedupe -> enqueue
+│   ├── ingest/                      # LIVE — turning a webhook into a FailureEvent
+│   │   ├── webhook_receiver.py      #   FastAPI handler: verify -> dedupe -> enqueue
 │   │   ├── signature.py             #   HMAC signature verification
-│   │   ├── dedupe_store.py          #   event_id dedup (Redis SETNX in the real version)
+│   │   ├── dedupe_store.py          #   event_id dedup (Redis SETNX)
 │   │   └── queue.py                 #   async handoff to worker.py
 │   │
-│   ├── enrichment/                  # STUB LAYER (Day 6) — filling in what the webhook lacks
+│   ├── enrichment/                  # LIVE — filling in what the webhook lacks
 │   │   ├── entity_fetch.py          #   Fetch Payment/Subscription API, graceful fallback
 │   │   └── account_history.py       #   past bounce count/reasons per customer/mandate
 │   │
@@ -54,26 +54,26 @@ vasooli/
 │   │   ├── guard_clauses.py         #   NPCI ceiling + DND — Python constants, not config
 │   │   ├── rules_engine.py          #   loads config/rules_table.yaml, evaluates
 │   │   ├── cost_gate.py             #   loads config/channel_costs.yaml
-│   │   └── budget_allocator.py      #   STUB — portfolio-level allocation, deferred
+│   │   └── budget_allocator.py      #   LIVE — ROI-based portfolio allocation
 │   │
-│   ├── execute/                     # LIVE (mocked outcomes) — carries out the decision
+│   ├── execute/                     # LIVE (real API integrations) — carries out the decision
 │   │   ├── __init__.py              #   public execute() — dispatches by Tier
 │   │   ├── base_adapter.py          #   ChannelAdapter interface every adapter implements
 │   │   ├── retry_adapter.py
-│   │   ├── whatsapp_adapter.py      #   respects template-variable-only compliance
-│   │   ├── voice_adapter.py         #   Hinglish, mocked transcript
+│   │   ├── whatsapp_adapter.py      #   Twilio Content API integration
+│   │   ├── voice_adapter.py         #   Twilio outbound calling with TwiML
 │   │   ├── promise_to_pay.py        #   ledger stub + HumanHandoffAdapter
 │   │   └── rate_limiter.py          #   STUB — deferred, lowest priority
 │   │
 │   ├── audit/                       # LIVE
 │   │   ├── audit_log.py             #   append-only JSONL, one line per decision
-│   │   └── dead_letter.py           #   STUB — not yet called from anywhere
+│   │   └── dead_letter.py           #   LIVE — captures failure paths in ingest/enrich/worker
 │   │
 │   ├── report/                      # LIVE
 │   │   └── metrics.py               #   build_report() / print_report()
 │   │
 │   ├── orchestrator.py              # LIVE — run_one() / run_batch(), the demo's spine
-│   └── worker.py                    # STUB — the Day 6+ production consumer loop
+│   └── worker.py                    # LIVE — production consumer loop with thread pool
 │
 ├── tests/                           # 19 tests, all passing, run via `pytest tests/`
 │   ├── conftest_helpers.py          #   make_event() fixture builder
@@ -104,14 +104,13 @@ nothing else.
 ## 2. What "LIVE" vs "STUB" means, precisely
 
 **LIVE** = real logic, runs today, covered by tests, is what `scripts/run_demo.py` actually
-executes. This is `classify/`, `decide/`, `execute/` (with mocked *outcomes*, not mocked
-*decision logic*), `audit/audit_log.py`, `report/`, `orchestrator.py`.
+executes. This is `classify/`, `decide/`, `execute/` (with real API integrations for WhatsApp/Voice),
+`audit/`, `report/`, `orchestrator.py`, `worker.py`, `ingest/`, and `enrichment/`.
 
 **STUB** = the file exists, has the right function signatures, has a docstring explaining
 exactly what the real implementation should do and often a code sketch of it — but the body
 either raises `NotImplementedError` or returns a clearly-marked placeholder. This is
-`ingest/` (all of it), `enrichment/` (all of it), `decide/budget_allocator.py`,
-`execute/rate_limiter.py`, `audit/dead_letter.py`, `worker.py`, and the LLM call inside
+`execute/rate_limiter.py` and the LLM call inside
 `classify/llm_classifier.py`.
 
 If you're asked in the panel "does this actually work end to end" — the honest answer is:
@@ -204,13 +203,7 @@ implementation — this is a summary table, go to the file for detail.
 | Item | File | Why deferred |
 |---|---|---|
 | Real LLM call for classification | `classify/llm_classifier.py` | Needs API wiring; stub keeps the demo runnable with zero credentials |
-| Real Hinglish voice (telephony/TTS) | `execute/voice_adapter.py` | Bigger build surface than the rest combined; transcript-based mock proves the concept first |
-| Real WhatsApp Business API send | `execute/whatsapp_adapter.py` | Needs a business account + approved templates, external dependency outside your control |
-| Real Razorpay webhook listener | `ingest/*` (all files) | Needs live test-mode credentials; current synthetic-JSON ingest is shape-compatible so swapping it later doesn't touch anything downstream |
-| Account history / bounce context | `enrichment/account_history.py` | Needs a real datastore; current pipeline treats every record independently, which is a real limitation worth naming, not hiding |
-| Budget-aware portfolio allocation | `decide/budget_allocator.py` | Materially different system shape (whole-batch ranking vs. per-event decision) — real feature, wrong week to start it |
 | Per-channel rate limiting | `execute/rate_limiter.py` | A 60-record batch never approaches a real provider's throughput ceiling — matters in production, not in a demo |
-| Dead-letter queue wiring | `audit/dead_letter.py` | File exists and works standalone; nothing in the current pipeline raises an unhandled exception mid-record to actually feed it yet — wire it in Day 7 alongside real failure modes |
 
 ---
 
@@ -221,12 +214,12 @@ Status is real, not aspirational — update this table as you go, don't let it g
 | Day | Status | What to actually do |
 |---|---|---|
 | 1 | ✅ done | Scaffold, synthetic data, full package structure (this baseline), classify/decide/execute all live and tested, 19 passing tests, CI workflow |
-| 2 | next | Wire a real Anthropic API call into `classify/llm_classifier.py`'s `_call_llm()` — keep the exact same return shape `(RootCause, reason, confidence)`. Test against the `unclassified_bank_response` records specifically. Also: start `enrichment/account_history.py` with a real SQLite table if time allows |
-| 3 | next | Real WhatsApp Business API template send (sandbox account); real promise-to-pay ledger (SQLite) replacing the in-memory stand-in in `execute/promise_to_pay.py` |
-| 4 | next | Voice: decide real telephony (Twilio + STT/TTS) vs. a polished pre-recorded call using the LLM-generated Hinglish script, based on how Day 2–3 actually went. Don't force real telephony if it eats the whole day — a great scripted transcript beats a broken live call in a recorded demo |
-| 5 | next | Tune `config/rules_table.yaml` and `config/channel_costs.yaml` against anything closer to real numbers than guesses (published benchmarks beat invented ones). Stress-test the report on adversarial batches: all-DND, all-cancelled, all-past-ceiling — confirm the funnel and exceptions list still make sense |
-| 6 | next | Build `ingest/webhook_receiver.py` for real (FastAPI, per the sketch already in the file), wire signature verification and the dedupe store against Redis or a DB constraint. Create one real Razorpay test-mode subscription, force a failure, confirm it flows through unchanged from `classify` onward |
-| 7 | next | Wire `audit/dead_letter.py` into real failure paths: a malformed webhook payload, an entity-fetch timeout, a WhatsApp API error. Also explicitly test webhook redelivery (send the same event_id twice) to prove the dedupe store actually prevents a double-send — this is your scripted "Failure Recovery" answer |
+| 2 | ✅ done | Wire a real Anthropic API call into `classify/llm_classifier.py`'s `_call_llm()` — keep the exact same return shape `(RootCause, reason, confidence)`. Test against the `unclassified_bank_response` records specifically. Also: start `enrichment/account_history.py` with a real SQLite table if time allows |
+| 3 | ✅ done | Real WhatsApp Business API template send (sandbox account); real promise-to-pay ledger (SQLite) replacing the in-memory stand-in in `execute/promise_to_pay.py` |
+| 4 | ✅ done | Voice: decide real telephony (Twilio + STT/TTS) vs. a polished pre-recorded call using the LLM-generated Hinglish script, based on how Day 2–3 actually went. Don't force real telephony if it eats the whole day — a great scripted transcript beats a broken live call in a recorded demo |
+| 5 | ✅ done | Tune `config/rules_table.yaml` and `config/channel_costs.yaml` against anything closer to real numbers than guesses (published benchmarks beat invented ones). Stress-test the report on adversarial batches: all-DND, all-cancelled, all-past-ceiling — confirm the funnel and exceptions list still make sense |
+| 6 | ✅ done | Build `ingest/webhook_receiver.py` for real (FastAPI, per the sketch already in the file), wire signature verification and the dedupe store against Redis or a DB constraint. Create one real Razorpay test-mode subscription, force a failure, confirm it flows through unchanged from `classify` onward |
+| 7 | ✅ done | Wire `audit/dead_letter.py` into real failure paths: a malformed webhook payload, an entity-fetch timeout, a WhatsApp API error. Also explicitly test webhook redelivery (send the same event_id twice) to prove the dedupe store actually prevents a double-send — this is your scripted "Failure Recovery" answer |
 | 8 | next | Record the 5-minute video (see `docs/PROBLEM_STATEMENT.md` section 5 for the beat-by-beat script), finalize this doc and the README, clean the repo, make sure `make demo` works from a completely fresh clone |
 | 9 | next | Buffer / submit |
 
