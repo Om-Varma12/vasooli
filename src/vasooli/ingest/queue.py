@@ -15,7 +15,7 @@ REDIS_URL = os.environ.get("REDIS_URL")
 QUEUE_NAME = "vasooli_webhook_queue"
 _redis_client = None
 
-def _get_client():
+def get_redis_client():
     global _redis_client
     if _redis_client is not None:
         return _redis_client
@@ -34,6 +34,9 @@ def _get_client():
         return _redis_client
     except Exception as e:
         raise RuntimeError(f"Could not connect to Redis at {REDIS_URL}: {e}")
+
+def _get_client():
+    return get_redis_client()
 
 def enqueue(payload: dict) -> None:
     """Pushes a webhook payload to the Redis list."""

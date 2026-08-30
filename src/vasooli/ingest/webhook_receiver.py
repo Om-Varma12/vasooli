@@ -8,10 +8,10 @@ import json
 import logging
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response
 from .signature import verify_signature
 from .dedupe_store import already_processed, mark_processed
-from .queue import enqueue
+from .queue import enqueue, get_redis_client
 
 # Load .env so RAZORPAY_WEBHOOK_SECRET and other vars are available even when
 # the server is started directly with uvicorn (not via a shell that already exports them).
@@ -25,6 +25,37 @@ app = FastAPI(title="Vasooli Ingest API")
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+@app.get("/voice/twiml")
+async def voice_twiml(call_id: str):
+    """
+    Serves TwiML instructions for outbound voice calls.
+    Fetches the generated transcript from Redis using the call_id.
+    """
+    try:
+        redis = get_redis_client()
+        transcript = redis.get(f"voice:transcript:{call_id}")
+
+        if not transcript:
+            # Fallback: a polite apology if transcript is missing
+            speech = "Namaste. Hum aapse baad mein phir se sampark karenge. Dhanyawad."
+        else:
+            # Replace newlines with pauses for better TTS
+            speech = transcript.replace("\n", ". ")
+
+        twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say voice="alice" language="hi-IN">{speech}</Say>
+    <Pause length="1"/>
+    <Say voice="alice" language="hi-IN">Dhanyawad.</Say>
+</Response>"""
+        return Response(content=twiml, media_type="application/xml")
+    except Exception as e:
+        logger.error(f"TwiML generation failed for {call_id}: {e}")
+        return Response(
+            content='<?xml version="1.0" encoding="UTF-8"?><Response><Say>Error occurred.</Say></Response>',
+            media_type="application/xml"
+        )
 
 @app.post("/webhooks/razorpay")
 async def receive(request: Request):

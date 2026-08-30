@@ -266,3 +266,31 @@ minutes, not when you try to film the video on Day 8.
 - **"Prove it works"** → `pytest tests/ -v`, then `python scripts/run_demo.py`
 - **"Show me one decision end to end"** → `data/audit_log.jsonl` after a demo run, `grep`
   for any `record_id`
+
+---
+
+## 9. Environment Configuration
+The system relies on the following environment variables (stored in `.env`):
+
+### Core Infrastructure
+- `REDIS_URL`: Redis connection string (e.g., `redis://localhost:6379`). Used for queuing and deduplication.
+- `DATABASE_URL`: Supabase PostgreSQL connection string.
+
+### Razorpay Integration
+- `RAZORPAY_WEBHOOK_SECRET`: Secret for signature verification.
+- `RAZORPAY_API_KEY` / `RAZORPAY_KEY_SECRET`: For API access.
+
+### LLM Layer
+- `GROQ_API_KEY`: API key for Groq (used in classify fallback).
+
+### Twilio WhatsApp
+- `TWILIO_ACCOUNT_SID`: Twilio Account SID.
+- `TWILIO_AUTH_TOKEN`: Twilio Auth Token.
+- `TWILIO_SANDBOX_NUMBER`: The Sandbox number (e.g. `+1...`).
+- `TEST_NUMBER`: Your verified phone number (e.g. `+91...`).
+- `TWILIO_CONTENT_SID`: Approved template SID for WhatsApp.
+
+### Twilio Voice
+- `TWILIO_VOICE_FROM`: The Twilio number used to place outbound calls.
+- `VOICE_BASE_URL`: The public URL (e.g. zrok) where the FastAPI server is hosted. Twilio fetches TwiML from `BASE_URL/voice/twiml`.
+
