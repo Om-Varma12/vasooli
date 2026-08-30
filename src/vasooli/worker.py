@@ -8,6 +8,7 @@ from .ingest.queue import dequeue
 from .orchestrator import run_one
 from .audit.audit_log import AuditLog
 from .models import FailureEvent, Category, PaymentMethod
+from .enrichment.entity_fetch import enrich
 
 
 def parse_webhook_to_event(payload: dict) -> FailureEvent:
@@ -142,7 +143,14 @@ def is_transient_error(exception: Exception) -> bool:
 def process_event_payload(payload: dict, audit: AuditLog) -> None:
     retries = payload.get("worker_retry_count", 0)
     try:
-        event = parse_webhook_to_event(payload)
+        # 1. Enrich the payload before parsing it into a FailureEvent
+        # This ensures the event has the latest data from the Razorpay API
+        enriched_payload = enrich(payload)
+
+        # Use enriched payload if available, otherwise fallback to original
+        final_payload = enriched_payload if enriched_payload else payload
+
+        event = parse_webhook_to_event(final_payload)
         run_one(event, audit)
     except Exception as e:
         if is_transient_error(e) and retries < MAX_WORKER_RETRIES:

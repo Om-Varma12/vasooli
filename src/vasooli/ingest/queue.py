@@ -39,12 +39,21 @@ def _get_client():
     return get_redis_client()
 
 def enqueue(payload: dict) -> None:
-    """Pushes a webhook payload to the Redis list."""
+    """Pushes a webhook payload to the Redis list.
+    If Redis is down, writes to the Dead Letter Queue (DLQ) to prevent event loss.
+    """
     client = _get_client()
     try:
         client.rpush(QUEUE_NAME, json.dumps(payload))
     except Exception as e:
-        logging.error(f"Redis enqueue failed: {e}")
+        logging.error(f"Redis enqueue failed: {e}. Writing to DLQ.")
+        try:
+            from ..audit.dead_letter import write as dlq_write
+            # Use a fallback record_id for DLQ if available, else 'system_error'
+            record_id = payload.get("id") or payload.get("event_id") or "system_error"
+            dlq_write(record_id=record_id, stage="enqueue", error=str(e))
+        except Exception as dlq_e:
+            logging.error(f"DLQ write also failed: {dlq_e}")
         raise
 
 def dequeue(timeout: int = 5) -> dict | None:
