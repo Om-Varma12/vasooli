@@ -58,6 +58,7 @@ def gen_record(i: int) -> dict:
         ["high_value", "standard", "low_value"], weights=[0.2, 0.5, 0.3], k=1
     )[0]
     dnd_flag = random.random() < 0.15
+    past_bounce_count = random.randint(3, 10) if random.random() < 0.2 else random.randint(0, 2)
 
     return {
         "record_id": f"rec_{i:04d}",
@@ -72,6 +73,7 @@ def gen_record(i: int) -> dict:
         "retry_count_so_far": retry_count,
         "customer_risk_tier": risk_tier,
         "dnd_flag": dnd_flag,
+        "past_bounce_count": past_bounce_count,
         "days_overdue": days_overdue,
     }
 

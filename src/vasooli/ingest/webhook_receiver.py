@@ -113,6 +113,13 @@ async def receive(request: Request):
     logger.info("\n" + json.dumps({k: v for k, v in log_entry.items() if v is not None}, indent=2))
     # ─────────────────────────────────────────────────────────────────────────
 
+    # Only enqueue events that indicate a failure or a need for recovery.
+    # Successful payments (authorized, captured) should be ignored by the recovery agent.
+    FAILURE_EVENTS = {"payment.failed", "subscription.pending", "subscription.halted", "invoice.expired"}
+
+    if payload.get("event") not in FAILURE_EVENTS:
+        return {"status": "ignored", "reason": "not a failure event"}
+
     mark_processed(event_id)
     enqueue(payload)
 
