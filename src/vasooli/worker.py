@@ -4,12 +4,39 @@ Continuously dequeues Razorpay webhooks, parses them, and routes them to orchest
 """
 import time
 import logging
-from .ingest.queue import dequeue
+import concurrent.futures
+import signal
+import os
+from dotenv import load_dotenv
+
+from .ingest.queue import dequeue, enqueue
 from .orchestrator import run_one
 from .audit.audit_log import AuditLog
+from .audit.dead_letter import write as dlq_write
 from .models import FailureEvent, Category, PaymentMethod
 from .enrichment.entity_fetch import enrich
 
+# Load env vars for logging and connectivity
+load_dotenv()
+
+# Configuration
+MAX_WORKER_RETRIES = 3
+MAX_THREADS = 4
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(threadName)s: %(message)s"
+)
+logger = logging.getLogger("vasooli.worker")
+
+# Global state for graceful shutdown
+shutdown_requested = False
+active_futures = set()
+
+def signal_handler(signum, frame):
+    global shutdown_requested
+    logger.info(f"Signal {signum} received. Requesting graceful shutdown...")
+    shutdown_requested = True
 
 def parse_webhook_to_event(payload: dict) -> FailureEvent:
     """
@@ -114,24 +141,8 @@ def parse_webhook_to_event(payload: dict) -> FailureEvent:
         days_overdue=days_overdue,
     )
 
-
-import concurrent.futures
-import signal
-
-shutdown_requested = False
-active_futures = set()
-
-
-def signal_handler(signum, frame):
-    global shutdown_requested
-    logging.info(f"Signal {signum} received. Requesting graceful shutdown...")
-    shutdown_requested = True
-
-
-MAX_WORKER_RETRIES = 3
-
-
 def is_transient_error(exception: Exception) -> bool:
+    """Determines if an error is temporary and worth retrying."""
     err_str = str(exception).lower()
     transient_indicators = [
         "timeout", "timed out", "connection error", "connection refused",
@@ -139,92 +150,83 @@ def is_transient_error(exception: Exception) -> bool:
     ]
     return any(indicator in err_str for indicator in transient_indicators)
 
-
 def process_event_payload(payload: dict, audit: AuditLog) -> None:
+    """
+    The core worker task: enrich -> parse -> run_one.
+    Handles retries for transient errors and DLQ for terminal ones.
+    """
     retries = payload.get("worker_retry_count", 0)
+    record_id = payload.get("id") or payload.get("event_id") or "unknown"
+
     try:
-        # 1. Enrich the payload before parsing it into a FailureEvent
-        # This ensures the event has the latest data from the Razorpay API
-        enriched_payload = enrich(payload)
+        # 1. Enrich
+        final_payload = enrich(payload)
 
-        # Use enriched payload if available, otherwise fallback to original
-        final_payload = enriched_payload if enriched_payload else payload
-
+        # 2. Parse
         event = parse_webhook_to_event(final_payload)
+
+        # 3. Run through the orchestrator
         run_one(event, audit)
+
     except Exception as e:
         if is_transient_error(e) and retries < MAX_WORKER_RETRIES:
+            # Exponential backoff is handled by adding a delay before re-enqueueing
+            # Or we can just re-enqueue and let the next pick-up happen.
+            # To avoid tight loops, we'll apply a small sleep here before putting it back.
             payload["worker_retry_count"] = retries + 1
-            backoff_seconds = 2 ** retries
-            logging.warning(
-                f"Transient error processing event {payload.get('id', 'unknown')}: {e}. "
-                f"Retrying in {backoff_seconds}s (attempt {retries + 1}/{MAX_WORKER_RETRIES})."
-            )
-            time.sleep(backoff_seconds)
-            from .ingest.queue import enqueue
+            backoff = 2 ** retries
+            logger.warning(f"Transient error for {record_id}: {e}. Retrying in {backoff}s (attempt {retries+1}/{MAX_WORKER_RETRIES})")
+            time.sleep(backoff)
             enqueue(payload)
         else:
-            logging.error(
-                f"Terminal/exhausted error processing event {payload.get('id', 'unknown')}: {e}"
-            )
+            # Terminal error or retries exhausted
+            logger.error(f"Terminal error processing event {record_id}: {e}")
             try:
-                from .audit.dead_letter import write as dlq_write
-                dlq_write(record_id=payload.get('id', 'unknown'), stage="worker", error=str(e))
-            except Exception:
-                pass
-
-
-def process_next_event(audit: AuditLog) -> bool:
-    """
-    Pulls next event from queue and processes it.
-    Returns True if an event was processed, False if queue is empty.
-    """
-    payload = dequeue(timeout=1)
-    if payload is None:
-        return False
-    
-    process_event_payload(payload, audit)
-    return True
-
+                dlq_write(record_id=record_id, stage="worker", error=str(e))
+            except Exception as dlq_e:
+                logger.error(f"DLQ write failed: {dlq_e}")
 
 def main():
     global shutdown_requested
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(threadName)s: %(message)s"
-    )
-    logging.info("Starting Vasooli Queue Worker...")
-    
+    logger.info("Starting Vasooli Queue Worker...")
+
+    # Setup Signals
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     if hasattr(signal, "SIGBREAK"):
         signal.signal(signal.SIGBREAK, signal_handler)
-        
+
     audit = AuditLog()
-    max_workers = 4
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="Worker") as executor:
+
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=MAX_THREADS,
+        thread_name_prefix="Worker"
+    ) as executor:
         while not shutdown_requested:
+            # Clean up completed futures
             completed = {f for f in active_futures if f.done()}
             active_futures.difference_update(completed)
-            
-            if len(active_futures) >= max_workers:
+
+            # Throttle submission if we are at capacity
+            if len(active_futures) >= MAX_THREADS:
                 concurrent.futures.wait(active_futures, return_when=concurrent.futures.FIRST_COMPLETED)
                 continue
-                
+
+            # Dequeue next event
             payload = dequeue(timeout=1)
             if payload is None:
                 continue
-                
-            logging.info(f"Dequeued event {payload.get('id', 'unknown')} - Payload: {payload}, submitting to worker pool.")
+
+            # Submit to pool
+            record_id = payload.get("id") or payload.get("event_id") or "unknown"
+            logger.info(f"Dequeued event {record_id}, submitting to worker pool.")
             future = executor.submit(process_event_payload, payload, audit)
             active_futures.add(future)
-            
-        logging.info("Graceful shutdown initiated. Waiting for active tasks to complete...")
-        executor.shutdown(wait=True)
-        logging.info("All tasks completed. Worker stopped.")
 
+        logger.info("Graceful shutdown initiated. Waiting for active tasks to complete...")
+        # Executor's context manager will call shutdown(wait=True) automatically
 
+    logger.info("All tasks completed. Worker stopped.")
 
 if __name__ == "__main__":
     main()
