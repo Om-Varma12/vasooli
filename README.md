@@ -51,14 +51,22 @@ That's a rules table you can print out and hand to a compliance officer.
                               └───────────┘        └─────────────┘      └─────────────┘
 ```
 
-## Quick start
+## Quick start {
+  "updated": "2026-08-30"
+}
 
 ```bash
 pip install -r requirements-dev.txt
+# For the batch demo:
 python scripts/generate_synthetic_data.py
 python scripts/run_demo.py
-pytest tests/ -v          # 19 tests, all passing
+
+# For the production pipeline:
+# 1. Start Redis
+# 2. Run the worker: python -m vasooli.worker
+# 3. Run the receiver: python -m vasooli.ingest.webhook_receiver
 ```
+pytest tests/ -v          # 19 tests, all passing
 
 Or just `make demo` / `make test`. See `PROJECT_PLAN.md` section 7 for the full command
 reference and `Makefile` for shortcuts.
