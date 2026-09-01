@@ -6,7 +6,7 @@ import { Banner } from './components/ui';
 import { GetStarted } from './components/features/GetStarted';
 import { RecoveryActivityHeader } from './components/features/RecoveryActivityHeader';
 import { RecoveryTable } from './components/features/RecoveryTable';
-import { RecoveryRecord } from './types/index';
+import type { RecoveryRecord } from './types/recovery';
 
 const MOCK_DATA: RecoveryRecord[] = [
   { id: "rec_A7K2M9L3X", customer: "cust_1847", amount: "₹5,400.00", rootCause: "Insufficient Funds", channel: "WhatsApp", retries: "2/3", message: "Hi, your payment failed. Please retry...", status: "Recovered", promiseCaptured: "✓" },

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '../ui';
-import { RecoveryRecord } from '../../types/index';
+import type { RecoveryRecord } from '../../types/recovery';
 
 interface RecoveryTableRowProps {
   record: RecoveryRecord;
