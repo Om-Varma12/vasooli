@@ -1,5 +1,5 @@
 import React from 'react';
-import { RecoveryRecord } from '../../types';
+import type { RecoveryRecord } from '../../types/recovery';
 import { RecoveryTableRow } from './RecoveryTableRow';
 import { Search } from 'lucide-react';
 
