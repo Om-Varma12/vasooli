@@ -29,7 +29,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ testMode, setTestMode }) => {
   const mainNav = [
-    { icon: Home, label: 'Home', active: true },
+    { icon: Home, label: 'Home', active: false },
     { icon: ArrowLeftRight, label: 'Transactions' },
     { icon: CheckCheck, label: 'Settlements' },
     { icon: FileText, label: 'Reports' },
@@ -75,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ testMode, setTestMode }) => {
           <div
             key={item.label}
             className={`side-row px-3 py-2 flex gap-3 items-center transition-all duration-150 cursor-pointer ${
-              item.special ? 'bg-slate-50' : 'hover:bg-slate-100'
+              item.special ? 'bg-slate-100 text-blue font-semibold' : 'hover:bg-slate-100'
             }`}
           >
             <item.icon size={18} />
