@@ -9,38 +9,40 @@ interface RecoveryTableProps {
 
 export const RecoveryTable: React.FC<RecoveryTableProps> = ({ data }) => {
   return (
-    <section className="bg-white border border-line rounded-lg overflow-hidden">
-      <div className="flex justify-between items-center p-3 border-b">
+    <section className="bg-white border border-[#e5e7eb] rounded-xl overflow-hidden shadow-sm">
+      <div className="flex justify-between items-center p-4 h-[60px] border-b border-[#e5e7eb] bg-white">
         <div className="flex gap-2">
-          <button className="border rounded-full px-3 py-1 text-xs hover:bg-slate-50">
-            Root Cause: All⌄
-          </button>
-          <button className="border rounded-full px-3 py-1 text-xs hover:bg-slate-50">
-            Channel: All⌄
-          </button>
-          <button className="border rounded-full px-3 py-1 text-xs hover:bg-slate-50">
-            Duration: 24/08/2026 - 31/08/2026⌄
-          </button>
-          <button className="text-slate-500 px-1 hover:text-black">×</button>
+          {['Root Cause: All', 'Channel: All', 'Duration: 24/08 - 31/08'].map((filter) => (
+            <button
+              key={filter}
+              className="px-3 py-1.5 bg-white border border-[#dfe3e8] rounded-md text-[12px] text-[#374151] hover:bg-[#f8fafc] transition-colors"
+            >
+              {filter}⌄
+            </button>
+          ))}
         </div>
-        <div className="border rounded px-3 py-2 w-72 text-slate-400 text-xs flex gap-2 items-center bg-white">
-          <Search size={14} />
-          <span>Search by Customer ID or Record ID</span>
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
+          <input
+            type="text"
+            placeholder="Search by Customer ID or Record ID"
+            className="pl-9 pr-3 py-2 w-[280px] h-10 border border-[#dfe3e8] rounded-lg text-[13px] placeholder:text-[#9ca3af] focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+          />
         </div>
       </div>
-      <div className="scroll overflow-auto">
-        <table className="w-full text-[13px] table-fixed">
-          <thead className="bg-slate-100 text-left">
-            <tr>
-              <th className="p-3 w-36">Record ID</th>
-              <th className="p-3 w-24">Customer</th>
-              <th className="p-3 w-24 text-right">Amount</th>
-              <th className="p-3 w-32">Root Cause</th>
-              <th className="p-3 w-28">Channel</th>
-              <th className="p-3 w-16">Retries</th>
-              <th className="p-3 w-64">Message/Call Sent</th>
-              <th className="p-3 w-24">Status</th>
-              <th className="p-3">Promise Captured</th>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[13px] table-fixed border-collapse">
+          <thead className="bg-[#f8fafc] text-left">
+            <tr className="h-[44px]">
+              <th className="p-3 w-[150px] text-[#6b7280] font-medium border-b border-[#e5e7eb]">Record ID</th>
+              <th className="p-3 w-[110px] text-[#6b7280] font-medium border-b border-[#e5e7eb]">Customer</th>
+              <th className="p-3 w-[90px] text-right text-[#6b7280] font-medium border-b border-[#e5e7eb]">Amount</th>
+              <th className="p-3 w-[130px] text-[#6b7280] font-medium border-b border-[#e5e7eb]">Root Cause</th>
+              <th className="p-3 w-[100px] text-[#6b7280] font-medium border-b border-[#e5e7eb]">Channel</th>
+              <th className="p-3 w-[70px] text-center text-[#6b7280] font-medium border-b border-[#e5e7eb]">Retries</th>
+              <th className="p-3 w-[250px] text-[#6b7280] font-medium border-b border-[#e5e7eb]">Message/Call Sent</th>
+              <th className="p-3 w-[110px] text-[#6b7280] font-medium border-b border-[#e5e7eb]">Status</th>
+              <th className="p-3 w-[120px] text-center text-[#6b7280] font-medium border-b border-[#e5e7eb]">Promise Captured</th>
             </tr>
           </thead>
           <tbody>
@@ -50,7 +52,7 @@ export const RecoveryTable: React.FC<RecoveryTableProps> = ({ data }) => {
           </tbody>
         </table>
       </div>
-      <div className="text-center text-muted text-xs py-4">
+      <div className="text-center text-[#6b7280] text-[12px] py-4 bg-white">
         Showing 1–{data.length}
       </div>
     </section>
