@@ -1,0 +1,65 @@
+:root {
+  --blue: #1e40af;
+  --navy: #0f172a;
+  --bg: #f8fafc;
+  --ink: #1f2937;
+  --muted: #666666;
+  --line: #e5e7eb;
+  --green: #10b981;
+  --orange: #f59e0b;
+  --red: #ef4444;
+  --gray: #6b7280;
+  --mint: #d1fae5;
+  --lav: #ddd6fe;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.table-row {
+  transition: 0.15s;
+}
+.table-row:hover {
+  background: #f9fafb;
+  box-shadow: 0 2px 8px #0000000a;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.custom-toggle {
+  width: 28px;
+  height: 16px;
+  border-radius: 99px;
+  background: #64748b;
+  position: relative;
+  transition: 0.15s;
+  cursor: pointer;
+}
+.custom-toggle.on {
+  background: var(--green);
+}
+.custom-toggle i {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  top: 2px;
+  left: 2px;
+  border-radius: 50%;
+  background: white;
+  transition: 0.15s;
+}
+.custom-toggle.on i {
+  left: 14px;
+}

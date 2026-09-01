@@ -5,6 +5,8 @@ venv/
 data/failed_payments_batch.json
 data/audit_log.jsonl
 
+.pytest_cache/
+rsc/
 .agents/
 .claude/
 skills-lock.json
