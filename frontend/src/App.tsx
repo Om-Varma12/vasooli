@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import './styles/globals.css';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopStatusBar } from './components/layout/TopStatusBar';
-import { Banner } from './components/ui/Banner';
+import { Banner } from './components/ui';
 import { GetStarted } from './components/features/GetStarted';
 import { RecoveryActivityHeader } from './components/features/RecoveryActivityHeader';
 import { RecoveryTable } from './components/features/RecoveryTable';
