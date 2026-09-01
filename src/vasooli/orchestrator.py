@@ -37,7 +37,8 @@ def run_one(event: FailureEvent, audit: AuditLog) -> dict:
     event.channel_response_rates = history["channel_response_rates"]
 
     # 2. Record this bounce in the database
-    record_bounce(event.customer_id, event.reason_code)
+    if root_cause != RootCause.CANCELLATION_INTENT:
+        record_bounce(event.customer_id, event.reason_code)
 
     root_cause, classify_reason, confidence, source = classify_layer.classify(event)
     audit.write(event.record_id, "classify", f"[{source}, confidence={confidence:.2f}] {classify_reason}")

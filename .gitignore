@@ -7,5 +7,6 @@ data/audit_log.jsonl
 
 .agents/
 .claude/
+db-rsc/
 skills-lock.json
 cmds.txt
