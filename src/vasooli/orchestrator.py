@@ -18,6 +18,7 @@ from .audit.audit_log import AuditLog
 from .audit.dead_letter import write as dlq_write
 from .models import FailureEvent
 from .enrichment.account_history import get_history, record_bounce, record_outcome
+from .decide.budget_allocator import allocate
 
 BATCH_PATH = Path(__file__).parent.parent.parent / "data" / "failed_payments_batch.json"
 
@@ -67,35 +68,105 @@ def run_one(event: FailureEvent, audit: AuditLog) -> dict:
     }
 
 
-def run_batch(path: Path = BATCH_PATH) -> list[dict]:
+def run_batch(path: Path = BATCH_PATH, budget: dict[str, float] = None) -> list[dict]:
     """
     Process all events in the batch. Per-record exceptions are caught and written
     to the DLQ — one bad record no longer aborts the whole batch.
+
+    If budget is provided, it ranks and filters decisions before execution.
     """
     audit = AuditLog()
     events = load_batch(path)
-    results = []
+
+    # If no budget, just process everything one by one as before
+    if budget is None:
+        results = []
+        for event in events:
+            try:
+                results.append(run_one(event, audit))
+            except Exception as exc:
+                logging.error(f"[orchestrator] unhandled error for {event.record_id}: {exc}")
+                dlq_write(record_id=event.record_id, stage="orchestrator", error=str(exc))
+                results.append({
+                    "record_id": event.record_id,
+                    "merchant_id": event.merchant_id,
+                    "category": event.category,
+                    "root_cause": "unknown",
+                    "tier": "human_handoff",
+                    "amount_inr": event.amount_inr,
+                    "channel": "dlq",
+                    "succeeded": False,
+                    "amount_recovered_inr": 0.0,
+                    "detail": f"Unhandled exception — written to DLQ: {exc}",
+                })
+        return results
+
+    # Budget-aware flow: 1. Enrich/Classify/Decide ALL -> 2. Allocate -> 3. Execute
+    processed_events = []
     for event in events:
         try:
-            results.append(run_one(event, audit))
+            # We need a modified version of run_one that doesn't call execute()
+            # For now, let's just do the logic here
+            history = get_history(event.customer_id)
+            event.past_bounce_count = history["past_bounce_count"]
+            event.past_bounce_reasons = history["past_bounce_reasons"]
+            event.last_successful_charge_date = history["last_successful_charge_date"]
+            event.channel_response_rates = history["channel_response_rates"]
+            record_bounce(event.customer_id, event.reason_code)
+
+            root_cause, classify_reason, confidence, source = classify_layer.classify(event)
+            audit.write(event.record_id, "classify", f"[{source}, confidence={confidence:.2f}] {classify_reason}")
+
+            decision = decide(event, root_cause)
+            audit.write(event.record_id, "policy", decision.reason)
+
+            processed_events.append((event, decision))
         except Exception as exc:
-            logging.error(f"[orchestrator] unhandled error for {event.record_id}: {exc}")
-            dlq_write(
-                record_id=event.record_id,
-                stage="orchestrator",
-                error=str(exc),
-            )
-            # Include a placeholder result so report totals stay consistent.
+            logging.error(f"[orchestrator] decision failed for {event.record_id}: {exc}")
+            dlq_write(record_id=event.record_id, stage="orchestrator_decision", error=str(exc))
+
+    # Rank and filter decisions based on budget
+    decisions_only = [d for _, d in processed_events]
+    allowed_decisions = allocate(decisions_only, budget)
+
+    # Create a map of allowed record_ids
+    allowed_ids = {d.record_id for d in allowed_decisions}
+
+    results = []
+    for event, decision in processed_events:
+        if event.record_id in allowed_ids:
+            try:
+                # Execute only the allowed decisions
+                result = execute(event, decision)
+                audit.write(event.record_id, f"execute:{result['channel']}", result["detail"])
+                audit.write(event.record_id, "outcome", f"succeeded={result['succeeded']} amount_recovered_inr={result['amount_recovered_inr']}")
+                record_outcome(event.customer_id, result["channel"], result["succeeded"])
+
+                results.append({
+                    "record_id": event.record_id,
+                    "merchant_id": event.merchant_id,
+                    "category": event.category,
+                    "root_cause": decision.root_cause.value,
+                    "tier": decision.tier.value,
+                    "amount_inr": event.amount_inr,
+                    **result,
+                })
+            except Exception as exc:
+                logging.error(f"[orchestrator] execution failed for {event.record_id}: {exc}")
+                dlq_write(record_id=event.record_id, stage="orchestrator_execute", error=str(exc))
+        else:
+            # Budgeted out
             results.append({
                 "record_id": event.record_id,
                 "merchant_id": event.merchant_id,
                 "category": event.category,
-                "root_cause": "unknown",
-                "tier": "human_handoff",
+                "root_cause": "budgeted_out",
+                "tier": "stopped",
                 "amount_inr": event.amount_inr,
-                "channel": "dlq",
+                "channel": "none",
                 "succeeded": False,
                 "amount_recovered_inr": 0.0,
-                "detail": f"Unhandled exception — written to DLQ: {exc}",
+                "detail": "Budget limit reached for this channel; event deferred.",
             })
+
     return results
