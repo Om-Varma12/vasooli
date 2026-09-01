@@ -76,6 +76,7 @@ class WhatsAppAdapter(ChannelAdapter):
                     "succeeded": True,
                     "amount_recovered_inr": 0.0,
                     "detail": f"Sent real WhatsApp notification via Twilio Sandbox. SID: {msg.sid}",
+                    "message": message,
                 }
             except Exception as e:
                 err_msg = f"Failed to send WhatsApp message via Twilio: {e}"
@@ -95,4 +96,5 @@ class WhatsAppAdapter(ChannelAdapter):
             "amount_recovered_inr": event.amount_inr if succeeded else 0.0,
             "detail": f"Sent templated nudge: \"{message}\" "
                       f"({'recovered' if succeeded else 'no click-through'} in simulation).",
+            "message": message,
         }

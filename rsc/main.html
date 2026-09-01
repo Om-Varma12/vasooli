@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <style>
+      :root {
+        --blue: #1e40af;
+        --navy: #0f172a;
+        --bg: #f8fafc;
+        --ink: #1f2937;
+        --muted: #666666;
+        --line: #e5e7eb;
+        --green: #10b981;
+        --orange: #f59e0b;
+        --red: #ef4444;
+        --gray: #6b7280;
+        --mint: #d1fae5;
+        --lav: #ddd6fe;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        color: var(--ink);
+        font-size: 14px;
+      }
+      .shell {
+        min-height: 100vh;
+        background: var(--bg);
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      .side-row {
+        transition: 0.15s;
+      }
+      .side-row:hover {
+        background: #f3f4f6;
+      }
+      .top-link {
+        transition: 0.15s;
+      }
+      .top-link:hover {
+        color: white;
+      }
+      .tab {
+        border-bottom: 2px solid transparent;
+      }
+      .tab:hover {
+        color: var(--blue);
+      }
+      .table-row {
+        transition: 0.15s;
+      }
+      .table-row:hover {
+        background: #f9fafb;
+        box-shadow: 0 2px 8px #0000000a;
+      }
+      .status {
+        padding: 4px 8px;
+        border-radius: 12px;
+        color: white;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-block;
+      }
+      .toggle {
+        width: 28px;
+        height: 16px;
+        border-radius: 99px;
+        background: #64748b;
+        position: relative;
+        transition: 0.15s;
+      }
+      .toggle.on {
+        background: var(--green);
+      }
+      .toggle i {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        top: 2px;
+        left: 2px;
+        border-radius: 50%;
+        background: white;
+        transition: 0.15s;
+      }
+      .toggle.on i {
+        left: 14px;
+      }
+      .banner {
+        min-height: 50px;
+      }
+      .scroll {
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell" data-sd-id="1">
+      <header
+        class="fixed top-0 left-0 right-0 h-14 bg-[var(--navy)] text-white z-40 flex items-center px-7 gap-10"
+        data-sd-id="2"
+      >
+        <div class="text-xl italic font-semibold w-56" data-sd-id="3">
+          <span class="text-sky-400" data-sd-id="4">↗</span>Razorpay
+        </div>
+        <nav
+          class="flex items-center gap-7 text-[13px] text-slate-300"
+          data-sd-id="5"
+        >
+          <a id="nav-home-link" href="#" class="top-link" data-sd-id="6"
+            >⌂ Razorpay Home</a
+          ><a
+            id="nav-payments-link"
+            href="#"
+            class="top-link text-white font-semibold border-b-2 border-[var(--blue)] h-14 flex items-center"
+            data-sd-id="7"
+            >▣ Payments</a
+          ><a id="nav-company-link" href="#" class="top-link" data-sd-id="8"
+            >♧ Company Registration</a
+          ><a id="nav-banking-link" href="#" class="top-link" data-sd-id="9"
+            >⚒ Banking+</a
+          ><a id="nav-payroll-link" href="#" class="top-link" data-sd-id="10"
+            >▤ Payroll ↗</a
+          ><a id="nav-more-link" href="#" class="top-link" data-sd-id="11"
+            >More⌄</a
+          >
+        </nav>
+        <div class="ml-auto flex items-center gap-2" data-sd-id="12">
+          <div
+            class="w-88 h-10 rounded-lg border border-slate-700 bg-slate-800 flex items-center px-3 gap-2 text-slate-400 text-[13px]"
+            data-sd-id="13"
+          >
+            <iconify-icon icon="lucide:search"></iconify-icon
+            ><span data-sd-id="14"
+              >Search payment products, settings, and more</span
+            >
+          </div>
+          <button
+            aria-label="Activity"
+            class="w-9 h-9 border border-slate-700 rounded-lg"
+            data-sd-id="15"
+          >
+            <iconify-icon icon="lucide:activity"></iconify-icon></button
+          ><button
+            aria-label="Notifications"
+            class="w-9 h-9 border border-slate-700 rounded-lg"
+            data-sd-id="16"
+          >
+            <iconify-icon icon="lucide:bell"></iconify-icon></button
+          ><button
+            aria-label="Apps"
+            class="w-9 h-9 border border-slate-700 rounded-lg"
+            data-sd-id="17"
+          >
+            <iconify-icon icon="lucide:layout-grid"></iconify-icon>
+          </button>
+          <div
+            class="w-9 h-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-semibold text-xs"
+            data-sd-id="18"
+          >
+            OV
+          </div>
+        </div>
+      </header>
+      <aside class="fixed top-14 bottom-0 left-0 w-[290px] bg-white border-r border-[var(--line)] z-30 flex flex-col">
+
+        <div class="p-2 pt-3" data-sd-id="20">
+          <div
+            class="side-row rounded-lg bg-slate-100 text-[var(--blue)] font-semibold px-3 py-2.5 flex gap-3 items-center"
+            data-sd-id="21"
+          >
+            <iconify-icon icon="lucide:home"></iconify-icon>Home
+          </div>
+          <div
+            class="side-row px-3 py-2.5 flex gap-3 items-center"
+            data-sd-id="22"
+          >
+            <iconify-icon icon="lucide:arrow-left-right"></iconify-icon
+            >Transactions
+          </div>
+          <div
+            class="side-row px-3 py-2.5 flex gap-3 items-center"
+            data-sd-id="23"
+          >
+            <iconify-icon icon="lucide:check-check"></iconify-icon>Settlements
+          </div>
+          <div
+            class="side-row px-3 py-2.5 flex gap-3 items-center"
+            data-sd-id="24"
+          >
+            <iconify-icon icon="lucide:file-text"></iconify-icon>Reports
+          </div>
+          <div
+            class="text-[11px] text-slate-400 mt-5 mb-1 px-3"
+            data-sd-id="25"
+          >
+            PAYMENT PRODUCTS
+          </div>
+          <a
+            id="sidebar-payment-links"
+            href="#"
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="26"
+            ><iconify-icon icon="lucide:link"></iconify-icon
+            ><span data-sd-id="27">Payment Links</span
+            ><small
+              class="bg-[var(--mint)] text-emerald-700 rounded-full px-2 py-0.5 text-[10px]"
+              >New Update</small
+            ></a
+          >
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center bg-slate-50"
+            data-sd-id="28"
+          >
+            <iconify-icon icon="lucide:bot"></iconify-icon
+            ><span data-sd-id="29">Vasooli</span
+            ><small
+              class="bg-[var(--lav)] text-indigo-700 rounded-full px-2 py-0.5 text-[10px]"
+              >AI</small
+            >
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="30"
+          >
+            <iconify-icon icon="lucide:panels-top-left"></iconify-icon>Payment
+            Pages
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="31"
+          >
+            <iconify-icon icon="lucide:at-sign"></iconify-icon>Razorpay.me Link
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="32"
+          >
+            <iconify-icon icon="lucide:files"></iconify-icon>Invoices
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="33"
+          >
+            <iconify-icon icon="lucide:credit-card"></iconify-icon>Payment
+            Button
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="34"
+          >
+            <iconify-icon icon="lucide:badge-percent"></iconify-icon
+            >Affordability
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="35"
+          >
+            <iconify-icon icon="lucide:qr-code"></iconify-icon>QR Codes
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="36"
+          >
+            <iconify-icon icon="lucide:refresh-cw"></iconify-icon>Subscriptions
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="37"
+          >
+            <iconify-icon icon="lucide:landmark"></iconify-icon>Smart Collect
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="38"
+          >
+            <iconify-icon icon="lucide:banknote"></iconify-icon>Checkout Rewards
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="39"
+          >
+            <iconify-icon icon="lucide:compass"></iconify-icon>Konnect
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="40"
+          >
+            <iconify-icon icon="lucide:shield"></iconify-icon>Customer Trust
+          </div>
+          <div
+            class="side-row px-3 py-2 flex gap-3 items-center"
+            data-sd-id="41"
+          >
+            <iconify-icon icon="lucide:git-branch"></iconify-icon>Optimizer
+          </div>
+          <div class="px-3 py-2 text-xs text-[var(--muted)]" data-sd-id="42">
+            Show Less⌃
+          </div>
+        </div>
+        <div class="mt-auto border-t border-[var(--line)] p-3" data-sd-id="43">
+          <div class="flex justify-between items-center py-2" data-sd-id="44">
+            <span data-sd-id="45">♙ &nbsp;Test Mode</span
+            ><button
+              class="toggle on"
+              onclick="this.classList.toggle('on')"
+              data-sd-id="46"
+            >
+              <i></i>
+            </button>
+          </div>
+          <div class="py-2" data-sd-id="47">
+            ⚙ &nbsp; Account &amp; Settings
+          </div>
+        </div>
+      </aside>
+      <div
+        class="fixed top-14 right-0 h-10 bg-[var(--bg)] z-20 flex items-center gap-5 px-8"
+        data-sd-id="48"
+      >
+        <button
+          class="toggle on"
+          onclick="this.classList.toggle('on')"
+          data-sd-id="49"
+        >
+          <i></i></button
+        ><span class="tracking-[4px] text-xs text-slate-500" data-sd-id="50"
+          >TEST</span
+        ><iconify-icon icon="lucide:key-round"></iconify-icon
+        ><iconify-icon icon="lucide:expand"></iconify-icon
+        ><iconify-icon icon="lucide:list"></iconify-icon>
+      </div>
+      <main class="ml-[300px] pt-24 pl-1 pr-2 pb-16">
+        <div
+          id="banner-a"
+          class="banner bg-white border border-[var(--line)] shadow-sm flex items-center mb-4"
+          data-sd-id="52"
+        >
+          <div
+            class="h-full min-h-12 bg-gradient-to-r from-indigo-700 to-indigo-600 text-white font-semibold px-4 flex items-center"
+            data-sd-id="53"
+          >
+            Bounded, Auditable Recovery
+          </div>
+          <div class="px-4 text-slate-600 flex-1" data-sd-id="54">
+            Every retry, message, and call this system takes is logged and
+            explainable.
+          </div>
+          <a
+            id="audit-banner-link"
+            href="#"
+            class="text-[var(--blue)] mr-5"
+            data-sd-id="55"
+            >View Audit Trail →</a
+          ><button
+            onclick="document.getElementById('banner-a').remove()"
+            class="px-4 text-xl text-slate-500"
+            data-sd-id="56"
+          >
+            ×
+          </button>
+        </div>
+        <div
+          id="banner-b"
+          class="banner bg-blue-50 border border-blue-100 flex items-center mb-4"
+          data-sd-id="57"
+        >
+          <div
+            class="bg-blue-600 text-white font-semibold px-4 py-3"
+            data-sd-id="58"
+          >
+            Vasooli Guardrails
+          </div>
+          <div class="px-4 text-slate-600 flex-1" data-sd-id="59">
+            NPCI caps automated retries at 3 attempts — this system enforces
+            that limit in code, not just policy.
+          </div>
+          <a
+            id="learn-more-link"
+            href="#"
+            class="text-[var(--blue)] mr-5"
+            data-sd-id="60"
+            >Learn more →</a
+          ><button
+            onclick="document.getElementById('banner-b').remove()"
+            class="px-4 text-xl text-slate-500"
+            data-sd-id="61"
+          >
+            ×
+          </button>
+        </div>
+        <section
+          id="started"
+          class="bg-white border border-[var(--line)] rounded-lg p-5 mb-6"
+          data-sd-id="62"
+        >
+          <div
+            class="flex justify-between font-semibold text-sm text-[var(--muted)]"
+            data-sd-id="63"
+          >
+            <span data-sd-id="64">GET STARTED</span
+            ><button
+              onclick="document.getElementById('started').remove()"
+              class="border rounded px-3 py-1 text-xs text-slate-700"
+              data-sd-id="65"
+            >
+              ♧ Got It
+            </button>
+          </div>
+          <div class="flex items-center mt-7" data-sd-id="66">
+            <div class="w-40 text-5xl text-blue-300" data-sd-id="67">◈</div>
+            <div class="flex-1 flex items-start" data-sd-id="68">
+              <div class="flex-1 text-center" data-sd-id="69">
+                <div
+                  class="mx-auto w-4 h-4 rounded-full bg-[var(--blue)] ring-8 ring-blue-50"
+                  data-sd-id="70"
+                ></div>
+                <div class="mt-4 font-medium" data-sd-id="71">
+                  1. Payment failure detected
+                </div>
+                <p class="text-xs text-[var(--muted)]" data-sd-id="72">
+                  Transaction declined by bank
+                </p>
+              </div>
+              <div class="h-px bg-slate-300 w-20 mt-2" data-sd-id="73"></div>
+              <div class="flex-1 text-center" data-sd-id="74">
+                <div
+                  class="mx-auto w-4 h-4 rounded-full bg-[var(--blue)] ring-8 ring-blue-50"
+                  data-sd-id="75"
+                ></div>
+                <div class="mt-4 font-medium" data-sd-id="76">
+                  2. Recovery action taken
+                </div>
+                <p class="text-xs text-[var(--muted)]" data-sd-id="77">
+                  Automated retry or escalation initiated
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+        <div class="flex justify-between items-end mb-2" data-sd-id="78">
+          <div data-sd-id="79">
+            <h1 class="text-lg font-bold" data-sd-id="80">
+              Vasooli — Recovery Activity
+            </h1>
+            <div class="flex gap-6 mt-3" data-sd-id="81">
+              <span
+                class="tab text-[var(--blue)] font-semibold border-[var(--blue)] pb-2"
+                data-sd-id="82"
+                >All</span
+              ><span class="tab pb-2" data-sd-id="83">Retried</span
+              ><span class="tab pb-2" data-sd-id="84">WhatsApp Sent</span
+              ><span class="tab pb-2" data-sd-id="85">Voice Escalated</span
+              ><span class="tab pb-2" data-sd-id="86">Recovered</span
+              ><span class="tab pb-2" data-sd-id="87">Unresolved</span>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-5 text-[var(--blue)] text-[13px]"
+            data-sd-id="88"
+          >
+            <a id="audit-log-link" href="#" data-sd-id="89">Audit Log</a
+            ><a id="config-rules-link" href="#" data-sd-id="90">Config Rules</a
+            ><a id="documentation-link" href="#" data-sd-id="91"
+              >Documentation ↗</a
+            ><button
+              class="bg-[var(--blue)] hover:bg-blue-900 text-white rounded px-4 py-2 font-semibold"
+              data-sd-id="92"
+            >
+              + Configure Rules
+            </button>
+          </div>
+        </div>
+        <div
+          class="bg-orange-50 rounded px-4 py-2 text-[13px] mb-3"
+          data-sd-id="93"
+        >
+          You are in <b>Test Mode</b>, so only test data is shown.
+          <a
+            id="activate-account-link"
+            href="#"
+            class="text-[var(--blue)]"
+            data-sd-id="94"
+            >Activate your account →</a
+          >
+        </div>
+        <section
+          class="bg-white border border-[var(--line)] rounded-lg overflow-hidden"
+          data-sd-id="95"
+        >
+          <div
+            class="flex justify-between items-center p-3 border-b"
+            data-sd-id="96"
+          >
+            <div class="flex gap-2" data-sd-id="97">
+              <button
+                class="border rounded-full px-3 py-1 text-xs"
+                data-sd-id="98"
+              >
+                Root Cause: All⌄</button
+              ><button
+                class="border rounded-full px-3 py-1 text-xs"
+                data-sd-id="99"
+              >
+                Channel: All⌄</button
+              ><button
+                class="border rounded-full px-3 py-1 text-xs"
+                data-sd-id="100"
+              >
+                Duration: 24/08/2026 - 31/08/2026⌄</button
+              ><button class="text-slate-500" data-sd-id="101">×</button>
+            </div>
+            <div
+              class="border rounded px-3 py-2 w-72 text-slate-400 text-xs flex gap-2"
+              data-sd-id="102"
+            >
+              <iconify-icon icon="lucide:search"></iconify-icon>Search by
+              Customer ID or Record ID
+            </div>
+          </div>
+          <div class="scroll" data-sd-id="103">
+            <table class="w-full text-[13px] table-fixed" data-sd-id="104">
+              <thead class="bg-slate-100 text-left" data-sd-id="105">
+                <tr data-sd-id="106">
+                  <th class="p-3 w-36" data-sd-id="107">Record ID</th>
+                  <th class="p-3 w-24" data-sd-id="108">Customer</th>
+                  <th class="p-3 w-24 text-right" data-sd-id="109">Amount</th>
+                  <th class="p-3 w-32" data-sd-id="110">Root Cause</th>
+                  <th class="p-3 w-28" data-sd-id="111">Channel</th>
+                  <th class="p-3 w-16" data-sd-id="112">Retries</th>
+                  <th class="p-3 w-64" data-sd-id="113">Message/Call Sent</th>
+                  <th class="p-3 w-24" data-sd-id="114">Status</th>
+                  <th class="p-3" data-sd-id="115">Promise Captured</th>
+                </tr>
+              </thead>
+              <tbody id="rows" data-sd-id="116"></tbody>
+            </table>
+          </div>
+          <div
+            class="text-center text-[var(--muted)] text-xs py-4"
+            data-sd-id="117"
+          >
+            Showing 1–10
+          </div>
+        </section>
+      </main>
+      <button
+        class="fixed bottom-5 right-7 z-40 bg-[var(--ink)] hover:bg-slate-950 text-white rounded-full px-5 py-3 text-xs font-semibold"
+        data-sd-id="118"
+      >
+        ♧ &nbsp;Help &amp; Support
+      </button>
+    </div>
+    <script>
+      const data = [
+        [
+          "rec_A7K2M9L3X",
+          "cust_1847",
+          "₹5,400.00",
+          "Insufficient Funds",
+          "WhatsApp",
+          "2/3",
+          "Hi, your payment failed. Please retry...",
+          "Recovered",
+          "✓",
+        ],
+        [
+          "rec_B4Q9P2W1Z",
+          "cust_5032",
+          "₹12,800.00",
+          "Mandate Expired",
+          "Voice Call",
+          "3/3",
+          "We noticed your mandate has expired...",
+          "Pending",
+          "✓",
+        ],
+        [
+          "rec_C8N1R6T5V",
+          "cust_7210",
+          "₹2,250.00",
+          "Bank Downtime",
+          "Retry",
+          "1/3",
+          "Your bank is temporarily unavailable...",
+          "Recovered",
+          "–",
+        ],
+        [
+          "rec_D2H7K4P9M",
+          "cust_2664",
+          "₹8,999.00",
+          "Risk Block",
+          "Human Handoff",
+          "3/3",
+          "A specialist will help complete your payment...",
+          "Unresolved",
+          "–",
+        ],
+        [
+          "rec_E5L3S8W2Q",
+          "cust_9041",
+          "₹1,499.00",
+          "Cancellation Intent",
+          "Voice Call",
+          "2/3",
+          "I understand you would like to cancel...",
+          "Stopped",
+          "–",
+        ],
+        [
+          "rec_F6J2V9A4K",
+          "cust_3378",
+          "₹6,750.00",
+          "Insufficient Funds",
+          "Retry",
+          "2/3",
+          "A retry is scheduled for your account...",
+          "Pending",
+          "–",
+        ],
+        [
+          "rec_G1P8M5C3R",
+          "cust_6159",
+          "₹3,200.00",
+          "Bank Downtime",
+          "WhatsApp",
+          "1/3",
+          "Payment systems are recovering. We will retry...",
+          "Recovered",
+          "✓",
+        ],
+        [
+          "rec_H9Q4B7N2D",
+          "cust_4586",
+          "₹18,400.00",
+          "Mandate Expired",
+          "Voice Call",
+          "3/3",
+          "Please confirm a convenient payment date...",
+          "Pending",
+          "✓",
+        ],
+        [
+          "rec_J3K6T1X8L",
+          "cust_8023",
+          "₹950.00",
+          "Risk Block",
+          "Human Handoff",
+          "3/3",
+          "Your case has been routed to our support team...",
+          "Unresolved",
+          "–",
+        ],
+        [
+          "rec_K7V2D5S9P",
+          "cust_1294",
+          "₹4,680.00",
+          "Cancellation Intent",
+          "WhatsApp",
+          "1/3",
+          "We can pause reminders if you need assistance...",
+          "Stopped",
+          "–",
+        ],
+      ];
+      const colors = {
+        Recovered: "bg-emerald-500",
+        Pending: "bg-amber-500",
+        Unresolved: "bg-red-500",
+        Stopped: "bg-gray-500",
+      };
+      document.getElementById("rows").innerHTML = data
+        .map(
+          (r) =>
+            `<tr class="table-row border-t"><td class="p-3 text-[var(--blue)] font-medium">${r[0]}</td><td class="p-3">${r[1]}</td><td class="p-3 text-right">${r[2]}</td><td class="p-3">${r[3]}</td><td class="p-3">${r[4]}</td><td class="p-3">${r[5]}</td><td class="p-3 truncate" title="${r[6]}">${r[6]}</td><td class="p-3"><span class="status ${colors[r[7]]}">${r[7]}</span></td><td class="p-3 ${r[8] == "✓" ? "text-emerald-600" : ""}">${r[8]}</td></tr>`,
+        )
+        .join("");
+    </script>
+  </body>
+</html>

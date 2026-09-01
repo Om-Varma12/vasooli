@@ -16,7 +16,7 @@ from .decide import decide
 from .execute import execute
 from .audit.audit_log import AuditLog
 from .audit.dead_letter import write as dlq_write
-from .models import FailureEvent
+from .models import FailureEvent, RootCause
 from .enrichment.account_history import get_history, record_bounce, record_outcome
 from .decide.budget_allocator import allocate
 
@@ -37,25 +37,55 @@ def run_one(event: FailureEvent, audit: AuditLog) -> dict:
     event.last_successful_charge_date = history["last_successful_charge_date"]
     event.channel_response_rates = history["channel_response_rates"]
 
-    # 2. Record this bounce in the database
-    record_bounce(event.customer_id, event.reason_code)
-
+    # 2. Classify first to determine if we should record a bounce
     root_cause, classify_reason, confidence, source = classify_layer.classify(event)
+    write_audit_entry(event.record_id, "classify", f"[{source}, confidence={confidence:.2f}] {classify_reason}")
     audit.write(event.record_id, "classify", f"[{source}, confidence={confidence:.2f}] {classify_reason}")
 
+    if root_cause != RootCause.CANCELLATION_INTENT:
+        record_bounce(event.customer_id, event.reason_code)
+
+    # 3. Decide strategy
     decision = decide(event, root_cause)
+    write_audit_entry(event.record_id, "policy", decision.reason)
     audit.write(event.record_id, "policy", decision.reason)
 
+    # 4. Execute
     result = execute(event, decision)
+    write_audit_entry(event.record_id, f"execute:{result['channel']}", result["detail"])
     audit.write(event.record_id, f"execute:{result['channel']}", result["detail"])
-    audit.write(
-        event.record_id, "outcome",
-        f"succeeded={result['succeeded']} amount_recovered_inr={result['amount_recovered_inr']}",
-    )
 
-    # 3. Record execution outcome
+    # 5. Final Outcome
+    outcome_detail = f"succeeded={result['succeeded']} amount_recovered_inr={result['amount_recovered_inr']}"
+    write_audit_entry(event.record_id, "outcome", outcome_detail)
+    audit.write(event.record_id, "outcome", outcome_detail)
     record_outcome(event.customer_id, result["channel"], result["succeeded"])
 
+    # 6. Persist Final Recovery Event
+    # Derive status per tables.md: succeeded -> recovered; stopped -> stopped; handoff & not succeeded -> unresolved; else pending
+    status = "pending"
+    if result["succeeded"]:
+        status = "recovered"
+    elif decision.tier == Tier.STOPPED:
+        status = "stopped"
+    elif decision.tier == Tier.HUMAN_HANDOFF and not result["succeeded"]:
+        status = "unresolved"
+
+    write_recovery_event(
+        record_id=event.record_id,
+        customer_id=event.customer_id,
+        merchant_id=event.merchant_id,
+        amount_inr=event.amount_inr,
+        root_cause=root_cause.value,
+        channel=result["channel"],
+        tier=decision.tier.value,
+        status=status,
+        retry_count=event.retry_count_so_far,
+        message=result.get("message"),
+        reason=decision.reason,
+        amount_recovered=result["amount_recovered_inr"],
+        promise_captured=result.get("promise_captured", False)
+    )
 
     return {
         "record_id": event.record_id,
