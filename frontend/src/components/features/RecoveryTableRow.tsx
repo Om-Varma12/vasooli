@@ -1,12 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '../ui';
+import { Play } from 'lucide-react';
 import type { RecoveryRecord } from '../../types/recovery';
 
 interface RecoveryTableRowProps {
   record: RecoveryRecord;
+  onRunTest: (id: string) => Promise<void>;
 }
 
-export const RecoveryTableRow: React.FC<RecoveryTableRowProps> = ({ record }) => {
+export const RecoveryTableRow: React.FC<RecoveryTableRowProps> = ({ record, onRunTest }) => {
+  const [isRunning, setIsRunning] = useState(false);
+
+  const handleRunTest = async () => {
+    setIsRunning(true);
+    try {
+      await onRunTest(record.id);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   const statusVariant = {
     Recovered: 'recovered' as const,
     Pending: 'pending' as const,
@@ -50,6 +63,20 @@ export const RecoveryTableRow: React.FC<RecoveryTableRowProps> = ({ record }) =>
         ) : (
           <span className="text-[#9ca3af]">—</span>
         )}
+      </td>
+      <td className="p-3 whitespace-nowrap text-center">
+        <button
+          onClick={handleRunTest}
+          disabled={isRunning}
+          className={`p-1.5 rounded-md transition-colors ${
+            isRunning
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+          }`}
+          title="Run pipeline test"
+        >
+          <Play size={14} fill="currentColor" />
+        </button>
       </td>
     </tr>
   );

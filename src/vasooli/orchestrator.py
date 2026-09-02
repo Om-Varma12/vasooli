@@ -26,7 +26,12 @@ BATCH_PATH = Path(__file__).parent.parent.parent / "data" / "failed_payments_bat
 def load_batch(path: Path = BATCH_PATH) -> list[FailureEvent]:
     raw = json.loads(path.read_text())
     valid_fields = FailureEvent.__dataclass_fields__.keys()
-    return [FailureEvent(**{k: v for k, v in r.items() if k in valid_fields}) for r in raw]
+    return [
+        FailureEvent(
+            **{k: v for k, v in r.items() if k in valid_fields},
+            raw_payload=r
+        ) for r in raw
+    ]
 
 
 def run_one(event: FailureEvent, audit: AuditLog) -> dict:
@@ -84,7 +89,8 @@ def run_one(event: FailureEvent, audit: AuditLog) -> dict:
         message=result.get("message"),
         reason=decision.reason,
         amount_recovered=result["amount_recovered_inr"],
-        promise_captured=result.get("promise_captured", False)
+        promise_captured=result.get("promise_captured", False),
+        raw_payload=event.raw_payload
     )
 
     return {

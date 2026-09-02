@@ -5,9 +5,10 @@ import { Search } from 'lucide-react';
 
 interface RecoveryTableProps {
   data: RecoveryRecord[];
+  onRunTest: (id: string) => Promise<void>;
 }
 
-export const RecoveryTable: React.FC<RecoveryTableProps> = ({ data }) => {
+export const RecoveryTable: React.FC<RecoveryTableProps> = ({ data, onRunTest }) => {
   return (
     <section className="bg-white border border-[#e5e7eb] rounded-xl overflow-hidden shadow-sm">
       <div className="flex justify-between items-center p-4 h-[60px] border-b border-[#e5e7eb] bg-white">
@@ -43,11 +44,12 @@ export const RecoveryTable: React.FC<RecoveryTableProps> = ({ data }) => {
               <th className="p-3 w-[250px] text-[#6b7280] font-medium border-b border-[#e5e7eb]">Message/Call Sent</th>
               <th className="p-3 w-[110px] text-[#6b7280] font-medium border-b border-[#e5e7eb]">Status</th>
               <th className="p-3 w-[120px] text-center text-[#6b7280] font-medium border-b border-[#e5e7eb]">Promise Captured</th>
+              <th className="p-3 w-[80px] text-center text-[#6b7280] font-medium border-b border-[#e5e7eb]">Actions</th>
             </tr>
           </thead>
           <tbody>
             {data.map((record) => (
-              <RecoveryTableRow key={record.id} record={record} />
+              <RecoveryTableRow key={record.id} record={record} onRunTest={onRunTest} />
             ))}
           </tbody>
         </table>
