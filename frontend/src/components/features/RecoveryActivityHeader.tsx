@@ -9,7 +9,7 @@ export const RecoveryActivityHeader: React.FC<RecoveryActivityHeaderProps> = ({
   activeTab,
   setActiveTab,
 }) => {
-  const tabs = ['All', 'Retried', 'WhatsApp Sent', 'Voice Escalated', 'Recovered', 'Unresolved'];
+  const tabs = ['All', 'Retried', 'WhatsApp Sent', 'Voice Escalated', 'Recovered', 'Unresolved', 'TEST mode'];
 
   return (
     <div className="flex justify-between items-end mb-2">

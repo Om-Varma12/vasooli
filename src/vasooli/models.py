@@ -59,6 +59,7 @@ class FailureEvent:
     past_bounce_reasons: list[str] = field(default_factory=list)
     last_successful_charge_date: Optional[str] = None
     channel_response_rates: dict[str, int] = field(default_factory=dict)
+    raw_payload: Optional[dict] = None     # original input JSON for pipeline re-runs
 
 
 

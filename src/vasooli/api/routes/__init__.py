@@ -1,1 +1,1 @@
-from .routes import events, system
+from . import events, system
