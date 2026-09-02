@@ -1,6 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String, Numeric, Integer, Boolean, DateTime, ForeignKey, func
-from sqlalchemy.sasyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from typing import Optional
 
