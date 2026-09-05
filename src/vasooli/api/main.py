@@ -1,3 +1,11 @@
+import asyncio
+import sys
+
+# Windows fix: asyncio subprocesses require ProactorEventLoop
+# This MUST be called before any event loop is created
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager

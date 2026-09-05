@@ -7,11 +7,11 @@ data/audit_log.jsonl
 
 .pytest_cache/
 rsc/
-.agents/
-.claude/
+twilio/
 db-rsc/
 skills-lock.json
 cmds.txt
 
 TODO
-.venv
+.venvsetup_docs/
+setup_docs/

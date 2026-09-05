@@ -16,9 +16,10 @@ from .decide import decide
 from .execute import execute
 from .audit.audit_log import AuditLog
 from .audit.dead_letter import write as dlq_write
-from .models import FailureEvent, RootCause
+from .models import FailureEvent, RootCause, Tier
 from .enrichment.account_history import get_history, record_bounce, record_outcome
 from .decide.budget_allocator import allocate
+from .db_events import write_audit_entry, write_recovery_event
 
 BATCH_PATH = Path(__file__).parent.parent.parent / "data" / "failed_payments_batch.json"
 
@@ -35,6 +36,25 @@ def load_batch(path: Path = BATCH_PATH) -> list[FailureEvent]:
 
 
 def run_one(event: FailureEvent, audit: AuditLog) -> dict:
+    # 0. Initialize record in DB to satisfy foreign key constraints for audit logs
+    write_recovery_event(
+        record_id=event.record_id,
+        customer_id=event.customer_id,
+        merchant_id=event.merchant_id,
+        amount_inr=event.amount_inr,
+        root_cause="pending",
+        channel="pending",
+        tier="pending",
+        status="pending",
+        retry_count=event.retry_count_so_far,
+        message=None,
+        reason=None,
+        amount_recovered=0.0,
+        promise_captured=False,
+        raw_payload=event.raw_payload,
+        phone_number=event.phone_number
+    )
+
     # 1. Fetch historical context for this customer
     history = get_history(event.customer_id)
     event.past_bounce_count = history["past_bounce_count"]
@@ -90,7 +110,8 @@ def run_one(event: FailureEvent, audit: AuditLog) -> dict:
         reason=decision.reason,
         amount_recovered=result["amount_recovered_inr"],
         promise_captured=result.get("promise_captured", False),
-        raw_payload=event.raw_payload
+        raw_payload=event.raw_payload,
+        phone_number=event.phone_number
     )
 
     return {

@@ -16,18 +16,18 @@ def test_voice_delivery():
     # 4. DND flag = False
 
     event = FailureEvent(
-        record_id="test_voice_real_001",
+        record_id="test_voice_chronic_001",
         merchant_id="merchant_test_123",
-        customer_id="cust_voice_test_789",
+        customer_id="cust_voice_chronic_999", # New ID to avoid bad history
         payment_method=PaymentMethod.UPI_AUTOPAY,
         category=Category.SUBSCRIPTION,
-        amount_inr=5000.0,              # >= 3000 required for voice
+        amount_inr=10000.0,              # High amount
         webhook_event="payment.failed",
-        reason_code="mandate_expired", # Maps to WhatsApp + then_evaluate_voice_escalation: true
+        reason_code="insufficient_funds", # Chronic bouncer trigger
         retry_count_so_far=0,
-        customer_risk_tier="high_value", # Required for voice
-        dnd_flag=False,                # Must be False for voice
-        past_bounce_count=0,
+        customer_risk_tier="high_value",
+        dnd_flag=False,
+        past_bounce_count=41,           # Chronic bouncer!
     )
 
     # Initialize an audit log
