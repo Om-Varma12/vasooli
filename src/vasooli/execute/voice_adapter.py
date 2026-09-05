@@ -31,7 +31,7 @@ class VoiceAdapter(ChannelAdapter):
         redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
         # Use event phone number, fallback to test number
-        to_number = getattr(event, "phone_number", os.environ.get("TEST_NUMBER"))
+        to_number = getattr(event, "phone_number", None) or os.environ.get("TEST_NUMBER")
 
         if not all([account_sid, auth_token, from_number, base_url, to_number]):
             logger.warning("Twilio voice credentials not fully set. Call cannot be placed.")

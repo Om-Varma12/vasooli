@@ -5,9 +5,8 @@ from vasooli.execute.voice_adapter import VoiceAdapter
 
 def test_voice_adapter_simulation_mode():
     """
-    Test that VoiceAdapter falls back to simulation mode when credentials are missing.
+    Test that VoiceAdapter handles missing credentials gracefully.
     """
-    # Mock os.environ to ensure credentials are missing
     with patch("os.environ.get", return_value=None):
         adapter = VoiceAdapter()
         event = FailureEvent(
@@ -24,20 +23,12 @@ def test_voice_adapter_simulation_mode():
             dnd_flag=False,
         )
 
-        # We need to mock load_rules because it reads from a YAML file
-        with patch("vasooli.execute.voice_adapter.load_rules") as mock_rules:
-            mock_rules.return_value = {
-                "voice_escalation": {
-                    "recovery_probability_by_cause": {"insufficient_funds": 0.5}
-                }
-            }
+        result = adapter.send(event, MagicMock(root_cause=RootCause.INSUFFICIENT_FUNDS))
 
-            result = adapter.send(event, MagicMock(root_cause=RootCause.INSUFFICIENT_FUNDS))
-
-            # Check that it didn't crash and returned a simulated outcome
-            assert "simulation" in result["detail"]
-            assert "channel" in result
-            assert result["channel"] == "voice"
+        # Check that it didn't crash and returned a failure response
+        assert "channel" in result
+        assert result["channel"] == "voice"
+        assert result["succeeded"] is False
 
 def test_voice_adapter_real_call_mocked():
     """
@@ -54,7 +45,7 @@ def test_voice_adapter_real_call_mocked():
     }
 
     with patch("os.environ.get", side_effect=lambda k, default=None: env_vars.get(k, default)):
-        with patch("twilio.rest.Client") as mock_client_class:
+        with patch("vasooli.execute.voice_adapter.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 
@@ -77,19 +68,13 @@ def test_voice_adapter_real_call_mocked():
                     dnd_flag=False,
                 )
 
-                with patch("vasooli.execute.voice_adapter.load_rules") as mock_rules:
-                    mock_rules.return_value = {
-                        "voice_escalation": {
-                            "recovery_probability_by_cause": {"insufficient_funds": 0.5}
-                        }
-                    }
+                result = adapter.send(event, MagicMock(root_cause=RootCause.INSUFFICIENT_FUNDS))
 
-                    result = adapter.send(event, MagicMock(root_cause=RootCause.INSUFFICIENT_FUNDS))
+                # Verify Twilio call was created
+                mock_client.calls.create.assert_called_once()
+                args, kwargs = mock_client.calls.create.call_args
+                assert "url" in kwargs
+                assert "to" in kwargs
+                assert "from_" in kwargs
+                assert "whatsapp" not in kwargs["to"] # Voice call, not WhatsApp
 
-                    # Verify Twilio call was created
-                    mock_client.calls.create.assert_called_once()
-                    args, kwargs = mock_client.calls.create.call_args
-                    assert "url" in kwargs
-                    assert "to" in kwargs
-                    assert "from_" in kwargs
-                    assert "whatsapp" not in kwargs["to"] # Voice call, not WhatsApp

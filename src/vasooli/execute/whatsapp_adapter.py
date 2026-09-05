@@ -37,12 +37,11 @@ class WhatsAppAdapter(ChannelAdapter):
         auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
         content_sid = os.environ.get("TWILIO_CONTENT_SID")
 
-        # Twilio WhatsApp requires the 'whatsapp:' prefix and E.164 format (e.g. whatsapp:+1234567890)
-        raw_from = os.environ.get("TWILIO_SANDBOX_NUMBER", "")
-        raw_to = os.environ.get("TEST_NUMBER", "")
+        raw_from = os.environ.get("TWILIO_WHATSAPP_FROM") or os.environ.get("TWILIO_SANDBOX_NUMBER", "")
+        raw_to = os.environ.get("TWILIO_WHATSAPP_TO") or os.environ.get("TEST_NUMBER", "")
 
-        from_number = f"whatsapp:{raw_from}" if raw_from else None
-        to_number = f"whatsapp:{raw_to}" if raw_to else None
+        from_number = raw_from if raw_from.startswith("whatsapp:") else f"whatsapp:{raw_from}" if raw_from else None
+        to_number = raw_to if raw_to.startswith("whatsapp:") else f"whatsapp:{raw_to}" if raw_to else None
 
         # Check if Twilio configuration is present
         if account_sid and auth_token and from_number and to_number:

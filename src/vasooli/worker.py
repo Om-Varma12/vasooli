@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from .ingest.queue import dequeue, enqueue
 from .orchestrator import run_one
 from .audit.audit_log import AuditLog
-from .audit.dead_letter import write as dlq_write
+from .audit import dead_letter
 from .models import FailureEvent, Category, PaymentMethod
 from .enrichment.entity_fetch import enrich
 
@@ -182,9 +182,22 @@ def process_event_payload(payload: dict, audit: AuditLog) -> None:
             # Terminal error or retries exhausted
             logger.error(f"Terminal error processing event {record_id}: {e}")
             try:
-                dlq_write(record_id=record_id, stage="worker", error=str(e))
+                dead_letter.write(record_id=record_id, stage="worker", error=str(e))
             except Exception as dlq_e:
                 logger.error(f"DLQ write failed: {dlq_e}")
+
+def process_next_event(audit: AuditLog = None) -> bool:
+    """
+    Dequeues a single event payload from the queue and processes it via process_event_payload.
+    Returns True if an event was processed, False if queue was empty.
+    """
+    if audit is None:
+        audit = AuditLog()
+    payload = dequeue(timeout=0)
+    if payload is None:
+        return False
+    process_event_payload(payload, audit)
+    return True
 
 def main():
     global shutdown_requested

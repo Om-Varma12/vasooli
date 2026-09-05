@@ -3,6 +3,7 @@ Database utility for recording event-level recovery data.
 Handles writes to recovery_events, promise_to_pay, and audit_log.
 """
 import os
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional

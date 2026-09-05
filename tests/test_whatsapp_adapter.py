@@ -17,6 +17,8 @@ def test_whatsapp_adapter_simulation_fallback_when_credentials_missing(monkeypat
     monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
     monkeypatch.delenv("TWILIO_WHATSAPP_FROM", raising=False)
     monkeypatch.delenv("TWILIO_WHATSAPP_TO", raising=False)
+    monkeypatch.delenv("TWILIO_SANDBOX_NUMBER", raising=False)
+    monkeypatch.delenv("TEST_NUMBER", raising=False)
 
     adapter = WhatsAppAdapter()
     event = make_event(amount_inr=500.0)
@@ -40,6 +42,9 @@ def test_whatsapp_adapter_real_send_success(mock_twilio_client, monkeypatch):
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tokenxxxx")
     monkeypatch.setenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
     monkeypatch.setenv("TWILIO_WHATSAPP_TO", "whatsapp:+919999999999")
+    monkeypatch.delenv("TWILIO_CONTENT_SID", raising=False)
+    monkeypatch.delenv("TWILIO_SANDBOX_NUMBER", raising=False)
+    monkeypatch.delenv("TEST_NUMBER", raising=False)
 
     mock_instance = MagicMock()
     mock_twilio_client.return_value = mock_instance
@@ -77,6 +82,9 @@ def test_whatsapp_adapter_real_send_api_failure(mock_dlq_write, mock_twilio_clie
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tokenxxxx")
     monkeypatch.setenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
     monkeypatch.setenv("TWILIO_WHATSAPP_TO", "whatsapp:+919999999999")
+    monkeypatch.delenv("TWILIO_CONTENT_SID", raising=False)
+    monkeypatch.delenv("TWILIO_SANDBOX_NUMBER", raising=False)
+    monkeypatch.delenv("TEST_NUMBER", raising=False)
 
     mock_instance = MagicMock()
     mock_twilio_client.return_value = mock_instance

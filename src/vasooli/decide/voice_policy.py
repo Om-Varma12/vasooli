@@ -11,7 +11,7 @@ def check_dnd(event: FailureEvent) -> bool:
     """
     return not event.dnd_flag
 
-def evaluate_voice_escalation(event: FailureEvent, root_cause: RootCause, config: dict):
+def evaluate_voice_escalation(event: FailureEvent, root_cause: RootCause, config: dict = None):
     """
     Voice eligibility. Gate order is deliberate:
       1. DND — hard stop, checked first, no exceptions.
@@ -19,6 +19,10 @@ def evaluate_voice_escalation(event: FailureEvent, root_cause: RootCause, config
       3. Cost gate — expected recovery vs. assumed call cost, from config, tunable.
     Returns (should_escalate: bool, human_reason: str, expected_recovery_inr: float | None).
     """
+    if config is None:
+        from .rules_engine import load_rules
+        config = load_rules()
+
     if not check_dnd(event):
         return False, (
             "Voice blocked: customer has an active DND/consent flag — hard stop, checked "

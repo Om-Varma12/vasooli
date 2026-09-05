@@ -8,23 +8,24 @@ import redis
 
 from ..deps import get_db
 from ..models import RecoveryEvent
-from ..services.voice_service import VoiceService
+from ...services.voice_service import VoiceService
 
 router = APIRouter(prefix="/voice", tags=["Voice Recovery"])
 logger = logging.getLogger("vasooli.api.voice")
 
-# Redis config for session management
-# In production, this would be in settings.py
-import os
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+from ...ingest.queue import get_redis_client
 
 def get_session_context(token: str) -> Optional[dict]:
     """Fetches recovery event context from Redis using the call token."""
-    data = redis_client.get(f"voice:session:{token}")
-    if not data:
+    try:
+        client = get_redis_client()
+        data = client.get(f"voice:session:{token}")
+        if not data:
+            return None
+        return json.loads(data)
+    except Exception as e:
+        logger.error(f"Error fetching session context for token {token}: {e}")
         return None
-    return json.loads(data)
 
 @router.post("/init")
 async def voice_init(

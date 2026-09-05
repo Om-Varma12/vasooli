@@ -9,12 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Import from the app
 from src.vasooli.api.main import app
 from src.vasooli.api.deps import AsyncSessionLocal
-from src.vasooli.api.routes.voice import redis_client
-from src.vasooli.models import RecoveryEvent, PromiseToPay
+from vasooli.ingest.queue import get_redis_client
+from src.vasooli.api.models import RecoveryEvent, PromiseToPay
 from sqlalchemy import select
 
-@pytest.mark.asyncio
-async def test_voice_ptp_flow():
+def test_voice_ptp_flow():
+    """
+    Test the end-to-end Voice PTP flow.
+    """
+    asyncio.run(_async_test_voice_ptp_flow())
+
+async def _async_test_voice_ptp_flow():
     """
     Test the end-to-end Voice PTP flow:
     1. Setup session in Redis
@@ -36,7 +41,7 @@ async def test_voice_ptp_flow():
             "amount_inr": amount,
             "merchant_id": merchant_id,
         }
-        redis_client.set(f"voice:session:{token}", json.dumps(session_context), ex=3600)
+        get_redis_client().set(f"voice:session:{token}", json.dumps(session_context), ex=3600)
 
         # Mock RecoveryEvent in DB
         async with AsyncSessionLocal() as db:

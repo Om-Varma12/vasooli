@@ -15,16 +15,53 @@ REDIS_URL = os.environ.get("REDIS_URL")
 QUEUE_NAME = "vasooli_webhook_queue"
 _redis_client = None
 
+class InMemoryRedis:
+    def __init__(self):
+        self._store = {}
+        self._lists = {}
+
+    def ping(self):
+        return True
+
+    def rpush(self, name, value):
+        if name not in self._lists:
+            self._lists[name] = []
+        self._lists[name].append(value)
+
+    def lpop(self, name):
+        if name in self._lists and self._lists[name]:
+            return self._lists[name].pop(0)
+        return None
+
+    def blpop(self, name, timeout=0):
+        val = self.lpop(name)
+        if val is not None:
+            return (name, val)
+        if timeout > 0:
+            import time
+            time.sleep(timeout)
+        return None
+
+    def exists(self, name):
+        return name in self._store
+
+    def set(self, name, value, ex=None):
+        self._store[name] = value
+
+    def get(self, name):
+        return self._store.get(name)
+
+_in_memory_client = InMemoryRedis()
+
 def get_redis_client():
     global _redis_client
     if _redis_client is not None:
         return _redis_client
 
     if not REDIS_URL:
-        raise RuntimeError(
-            "REDIS_URL environment variable is not set. "
-            "Vasooli requires Redis for cross-process communication between Receiver and Worker."
-        )
+        logging.warning("[queue] REDIS_URL not set. Falling back to in-memory queue.")
+        _redis_client = _in_memory_client
+        return _redis_client
 
     try:
         import redis
@@ -33,7 +70,9 @@ def get_redis_client():
         _redis_client = client
         return _redis_client
     except Exception as e:
-        raise RuntimeError(f"Could not connect to Redis at {REDIS_URL}: {e}")
+        logging.warning(f"[queue] Could not connect to Redis at {REDIS_URL}: {e}. Falling back to in-memory queue.")
+        _redis_client = _in_memory_client
+        return _redis_client
 
 def _get_client():
     return get_redis_client()

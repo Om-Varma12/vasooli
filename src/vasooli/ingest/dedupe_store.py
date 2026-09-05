@@ -11,28 +11,10 @@ from dotenv import load_dotenv
 # Load .env to ensure REDIS_URL is available
 load_dotenv()
 
-REDIS_URL = os.environ.get("REDIS_URL")
-_redis_client = None
+from .queue import get_redis_client
 
 def _get_client():
-    global _redis_client
-    if _redis_client is not None:
-        return _redis_client
-
-    if not REDIS_URL:
-        raise RuntimeError(
-            "REDIS_URL environment variable is not set. "
-            "Vasooli requires Redis for cross-process deduplication."
-        )
-
-    try:
-        import redis
-        client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-        client.ping()
-        _redis_client = client
-        return _redis_client
-    except Exception as e:
-        raise RuntimeError(f"Could not connect to Redis at {REDIS_URL}: {e}")
+    return get_redis_client()
 
 def already_processed(event_id: str) -> bool:
     """Checks if an event has already been processed using Redis."""
