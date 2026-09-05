@@ -55,12 +55,6 @@ def check_retry_ceiling(event: FailureEvent, root_cause: RootCause) -> Decision 
     )
 
 
-def check_dnd(event: FailureEvent) -> bool:
-    """Guard clause #3 — not a Decision short-circuit on its own, but a hard boolean the
-    voice-escalation evaluator MUST consult before the cost gate, never after. See
-    rules_engine.py's voice eligibility check.
-    """
-    return not event.dnd_flag  # True = voice is allowed to even be considered
 
 
 def run_guard_clauses(event: FailureEvent, root_cause: RootCause) -> Decision | None:
@@ -76,20 +70,32 @@ def run_guard_clauses(event: FailureEvent, root_cause: RootCause) -> Decision | 
 
 def check_chronic_bouncer(event: FailureEvent, root_cause: RootCause) -> Decision | None:
     """Guard clause #3. Bypasses auto-retry for chronic bouncers (past_bounce_count >= 3)
-    to prevent transaction fee waste, escalating to WhatsApp nudge directly.
+    to prevent transaction fee waste, but still allows voice escalation if eligible.
     """
     if event.past_bounce_count < 3:
         return None
 
     if root_cause in (RootCause.INSUFFICIENT_FUNDS, RootCause.BANK_DOWNTIME):
+        # We must bypass auto-retry, but we can still escalate to voice
+        from .voice_policy import evaluate_voice_escalation
+        from .rules_engine import load_rules
+
+        config = load_rules()
+        escalate, escalation_reason, expected_recovery = evaluate_voice_escalation(event, root_cause, config)
+
+        tier = Tier.VOICE if escalate else Tier.WHATSAPP
+        reason = (
+            f"Chronic bouncer (past_bounce_count={event.past_bounce_count} >= 3) with transient cause "
+            f"'{root_cause.value}'. Bypassing auto-retry to prevent transaction costs. "
+            f"{escalation_reason}"
+        )
+
         return Decision(
             record_id=event.record_id,
             root_cause=root_cause,
-            tier=Tier.WHATSAPP,
-            reason=(
-                f"Chronic bouncer (past_bounce_count={event.past_bounce_count} >= 3) with transient cause "
-                f"'{root_cause.value}'. Bypassing auto-retry to prevent transaction costs; escalating to WhatsApp nudge."
-            ),
+            tier=tier,
+            reason=reason,
+            expected_recovery_inr=expected_recovery if escalate else None,
             blocked_by="chronic_bouncer_escalation",
         )
     return None

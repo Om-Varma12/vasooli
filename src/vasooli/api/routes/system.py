@@ -1,6 +1,8 @@
 import logging
 import asyncio
 import os
+import sys
+import subprocess
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from ..deps import AsyncSessionLocal
@@ -44,29 +46,35 @@ async def run_test_script(script_key: str):
 
     script_path = ALLOWED_SCRIPTS[script_key]
 
-    # Ensure script path is relative to project root (where the API is usually launched from)
-    # If not launched from root, we might need absolute paths.
-    # For now, assuming launched from the project root.
-
     try:
         logger.info(f"Executing test script: {script_path}")
 
-        # Use python -u for unbuffered output so we can capture it better
-        process = await asyncio.create_subprocess_exec(
-            "python", "-u", script_path,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
+        # Use asyncio.to_thread with subprocess.run to avoid Windows NotImplementedError
+        # with asyncio.create_subprocess_exec. This is the most robust way on Windows.
+        def execute_script():
+            return subprocess.run(
+                [sys.executable, "-u", script_path],
+                capture_output=True,
+                text=False,  # Capture raw bytes to avoid encoding issues during read
+                check=False,
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"}
+            )
 
-        stdout, stderr = await process.communicate()
+        result = await asyncio.to_thread(execute_script)
+
+        # Decode bytes manually using utf-8 to prevent Windows charmap errors
+        stdout = result.stdout.decode("utf-8", errors="replace").strip() if result.stdout else ""
+        stderr = result.stderr.decode("utf-8", errors="replace").strip() if result.stderr else ""
 
         return {
             "script": script_key,
-            "exit_code": process.returncode,
-            "stdout": stdout.decode().strip(),
-            "stderr": stderr.decode().strip(),
-            "status": "success" if process.returncode == 0 else "failed"
+            "exit_code": result.returncode,
+            "stdout": stdout,
+            "stderr": stderr,
+            "status": "success" if result.returncode == 0 else "failed"
         }
     except Exception as e:
-        logger.error(f"Failed to run script {script_path}: {e}")
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"Failed to run script {script_path}:\n{error_details}")
         raise HTTPException(status_code=500, detail=f"Internal server error executing script: {str(e)}")

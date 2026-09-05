@@ -53,6 +53,7 @@ class FailureEvent:
     retry_count_so_far: int
     customer_risk_tier: str                # "high_value" | "standard" | "low_value"
     dnd_flag: bool
+    phone_number: Optional[str] = None
     days_overdue: int = 0                  # only meaningful for B2B_RECEIVABLE
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     past_bounce_count: int = 0

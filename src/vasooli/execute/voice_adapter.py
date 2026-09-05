@@ -53,9 +53,10 @@ class VoiceAdapter(ChannelAdapter):
                     call_url = f"{base_url}/voice/twiml?call_id={call_id}"
 
                 call = client.calls.create(
-                    url=call_url,
+                    # url=call_url,
                     to=to_number,
-                    from_=from_number
+                    from_=from_number,
+                    twiml='<Response><Say voice="Polly.Aditi" language="hi-IN">Namaste! Aapka payment fail ho gaya. Kripya apna balance check karein.</Say></Response>',
                 )
 
                 logger.info(f"Real voice call triggered. SID: {call.sid}, CallID: {call_id}")

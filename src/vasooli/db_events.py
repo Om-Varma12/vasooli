@@ -36,7 +36,8 @@ def write_recovery_event(
     reason: Optional[str],
     amount_recovered: float = 0.0,
     promise_captured: bool = False,
-    raw_payload: Optional[dict] = None
+    raw_payload: Optional[dict] = None,
+    phone_number: Optional[str] = None
 ) -> None:
     """Writes a final record of a recovery attempt to the database."""
     if not DB_URL:
@@ -50,18 +51,19 @@ def write_recovery_event(
                         record_id, customer_id, merchant_id, amount_inr, root_cause,
                         channel, tier, status, retry_count_so_far,
                         message_or_transcript, reason, amount_recovered_inr, promise_captured,
-                        raw_payload
+                        raw_payload, phone_number
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (record_id) DO UPDATE SET
                         status = EXCLUDED.status,
                         amount_recovered_inr = EXCLUDED.amount_recovered_inr,
                         promise_captured = EXCLUDED.promise_captured,
-                        raw_payload = EXCLUDED.raw_payload;
+                        raw_payload = EXCLUDED.raw_payload,
+                        phone_number = EXCLUDED.phone_number;
                 """, (
                     record_id, customer_id, merchant_id, amount_inr, root_cause,
                     channel, tier, status, retry_count, message, reason, amount_recovered, promise_captured,
-                    json.dumps(raw_payload) if raw_payload else None
+                    json.dumps(raw_payload) if raw_payload else None, phone_number
                 ))
             conn.commit()
     except Exception as e:
