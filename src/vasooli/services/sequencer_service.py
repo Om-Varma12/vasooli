@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from typing import Tuple, Optional
-from ..models import RecoveryEvent
+from ..api.models import RecoveryEvent
 
 logger = logging.getLogger("vasooli.services.sequencer")
 

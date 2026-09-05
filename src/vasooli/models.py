@@ -82,3 +82,11 @@ class AuditEntry:
     step: str                              # "classify" | "policy" | "execute:<channel>" | "outcome"
     detail: str
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+# Convenience re-exports for API/database models
+try:
+    from .api.models import RecoveryEvent, PromiseToPay, AuditLog
+except ImportError:
+    pass
+

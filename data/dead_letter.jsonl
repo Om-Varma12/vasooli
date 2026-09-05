@@ -36,3 +36,5 @@
 {"record_id": "pay_e2e_001", "stage": "enrich", "error": "Enrichment failed for payment:pay_e2e_001: The id provided does not exist", "payload": null, "timestamp": "2026-09-05T08:32:06.790979+00:00"}
 {"record_id": "pay_e2e_001", "stage": "enrich", "error": "Enrichment failed for payment:pay_e2e_001: The id provided does not exist", "payload": null, "timestamp": "2026-09-05T08:32:25.397845+00:00"}
 {"record_id": "pay_e2e_001", "stage": "enrich", "error": "Enrichment failed for payment:pay_e2e_001: The id provided does not exist", "payload": null, "timestamp": "2026-09-05T08:32:44.432586+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "LLM classification parsing failed. Raw response: 'This is not a JSON object at all.'. Error: Expecting value: line 1 column 1 (char 0)", "payload": null, "timestamp": "2026-09-05T18:38:22.560230+00:00"}
+{"record_id": "rec_test_0001", "stage": "classify", "error": "Groq API call failed: API rate limit exceeded", "payload": null, "timestamp": "2026-09-05T18:38:22.564340+00:00"}

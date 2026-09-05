@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
 from typing import Optional, List
@@ -11,6 +11,8 @@ from ..schemas.event import RecoveryEventRead
 from ..schemas.common import PaginatedResponse
 from ..schemas.promise import PromiseToPayRead
 from ..schemas.audit import AuditLogRead
+from ...services.pdf_service import generate_recovery_report_pdf
+from ...report.metrics import build_report
 
 router = APIRouter(prefix="/recovery-events", tags=["Recovery Events"])
 
@@ -43,6 +45,43 @@ async def get_recovery_stats(db: AsyncSession = Depends(get_db)):
         "recovery_rate": (total_recovered / total_at_risk * 100) if total_at_risk > 0 else 0,
         "state_distribution": dist
     }
+
+@router.get("/report")
+async def export_recovery_report(db: AsyncSession = Depends(get_db)):
+    """
+    Generates a professional PDF report of all recovery activities.
+    """
+    # 1. Fetch all recovery events to build the report data
+    result = await db.execute(select(RecoveryEvent))
+    events = result.scalars().all()
+
+    # 2. Map DB models to the format expected by build_report
+    report_results = [
+        {
+            "record_id": e.record_id,
+            "merchant_id": e.merchant_id or "Unknown",
+            "amount_inr": float(e.amount_inr),
+            "amount_recovered_inr": float(e.amount_recovered_inr),
+            "channel": e.channel,
+            "tier": e.tier,
+            "root_cause": e.root_cause,
+            "succeeded": e.status == "recovered",
+            "detail": e.last_failure_reason or "No further details",
+        }
+        for e in events
+    ]
+
+    # 3. Generate the metrics dictionary
+    report_data = build_report(report_results)
+
+    # 4. Generate the PDF bytes
+    pdf_bytes = generate_recovery_report_pdf(report_data)
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=vasooli_recovery_report.pdf"}
+    )
 
 @router.get("/", response_model=PaginatedResponse[RecoveryEventRead])
 async def get_recovery_events(
@@ -131,3 +170,40 @@ async def get_event_promises(record_id: str, db: AsyncSession = Depends(get_db))
     query = select(PromiseToPay).where(PromiseToPay.record_id == record_id)
     result = await db.execute(query)
     return result.scalars().all()
+
+@router.get("/report")
+async def export_recovery_report(db: AsyncSession = Depends(get_db)):
+    """
+    Generates a professional PDF report of all recovery activities.
+    """
+    # 1. Fetch all recovery events to build the report data
+    result = await db.execute(select(RecoveryEvent))
+    events = result.scalars().all()
+
+    # 2. Map DB models to the format expected by build_report
+    report_results = [
+        {
+            "record_id": e.record_id,
+            "merchant_id": e.merchant_id or "Unknown",
+            "amount_inr": float(e.amount_inr),
+            "amount_recovered_inr": float(e.amount_recovered_inr),
+            "channel": e.channel,
+            "tier": e.tier,
+            "root_cause": e.root_cause,
+            "succeeded": e.status == "recovered",
+            "detail": e.last_failure_reason or "No further details",
+        }
+        for e in events
+    ]
+
+    # 3. Generate the metrics dictionary
+    report_data = build_report(report_results)
+
+    # 4. Generate the PDF bytes
+    pdf_bytes = generate_recovery_report_pdf(report_data)
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=vasooli_recovery_report.pdf"}
+    )

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from vasooli.models import FailureEvent, PaymentMethod, Category, RootCause
-from vasooli.execute.voice_adapter import VoiceAdapter
+from src.vasooli.models import FailureEvent, PaymentMethod, Category, RootCause
+from src.vasooli.execute.voice_adapter import VoiceAdapter
 
 def test_voice_adapter_simulation_mode():
     """

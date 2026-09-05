@@ -11,6 +11,11 @@ export const RecoveryActivityHeader: React.FC<RecoveryActivityHeaderProps> = ({
 }) => {
   const tabs = ['All', 'Retried', 'WhatsApp Sent', 'Voice Escalated', 'Recovered', 'Unresolved', 'TEST mode'];
 
+  const handleExportReport = () => {
+    // Direct browser navigation to the report endpoint to trigger download
+    window.open("http://127.0.0.1:8001/recovery-events/report", "_blank");
+  };
+
   return (
     <div className="flex justify-between items-end mb-2">
       <div>
@@ -37,6 +42,12 @@ export const RecoveryActivityHeader: React.FC<RecoveryActivityHeaderProps> = ({
         <a href="#" className="hover:underline">Audit Log</a>
         <a href="#" className="hover:underline">Config Rules</a>
         <a href="#" className="hover:underline">Documentation ↗</a>
+        <button
+          onClick={handleExportReport}
+          className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded px-4 py-2 font-semibold transition-colors mr-2"
+        >
+          Export Report 📄
+        </button>
         <button className="bg-blue hover:bg-blue-900 text-white rounded px-4 py-2 font-semibold transition-colors">
           + Configure Rules
         </button>

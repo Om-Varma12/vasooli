@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Import from the app
 from src.vasooli.api.main import app
 from src.vasooli.api.deps import AsyncSessionLocal
-from vasooli.ingest.queue import get_redis_client
+from src.vasooli.ingest.queue import get_redis_client
 from src.vasooli.api.models import RecoveryEvent, PromiseToPay
 from sqlalchemy import select
 

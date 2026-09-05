@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from vasooli.models import FailureEvent, Category, PaymentMethod
+from src.vasooli.models import FailureEvent, Category, PaymentMethod
 
 
 def make_event(**overrides) -> FailureEvent:

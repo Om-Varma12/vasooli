@@ -38,7 +38,11 @@ def write_recovery_event(
     amount_recovered: float = 0.0,
     promise_captured: bool = False,
     raw_payload: Optional[dict] = None,
-    phone_number: Optional[str] = None
+    phone_number: Optional[str] = None,
+    recovery_state: Optional[str] = None,
+    next_retry_at: Optional[datetime] = None,
+    last_failure_reason: Optional[str] = None,
+    **kwargs
 ) -> None:
     """Writes a final record of a recovery attempt to the database."""
     if not DB_URL:
