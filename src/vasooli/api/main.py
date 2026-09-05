@@ -13,10 +13,7 @@ import logging
 
 from .database import settings
 from .deps import engine
-from .routes.events import router as events_router
-from .routes.system import router as system_router
-from .routes.webhooks import router as webhooks_router
-from .routes.voice import router as voice_router
+from .routes import events, system
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("vasooli.api")
@@ -58,14 +55,8 @@ app.add_middleware(
 )
 
 # Register Routers
-app.include_router(events_router)
-app.include_router(system_router)
-app.include_router(webhooks_router)
-app.include_router(voice_router)
-
-@app.get("/debug")
-async def debug():
-    return {"status": "ok", "message": "The API is actually running and responding!"}
+app.include_router(events.router)
+app.include_router(system.router)
 
 @app.get("/")
 async def root():

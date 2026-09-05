@@ -6,30 +6,21 @@ import subprocess
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from ..deps import AsyncSessionLocal
+from sqlalchemy.ext.asyncio import AsyncSession
+from .database import settings, get_conn
 
-router = APIRouter(prefix="/system", tags=["System"])
-
-# Security whitelist for test scripts
-ALLOWED_SCRIPTS = {
-    "gen_tests": "scripts/gen_tests.py",
-    "generate_data": "scripts/generate_synthetic_data.py",
-    "run_demo": "scripts/run_demo.py",
-    "test_voice": "scripts/test_voice_send.py",
-    "test_whatsapp": "scripts/test_whatsapp_send.py",
-    "trigger_bouncer": "scripts/trigger_chronic_bouncer.py",
-}
-
-logger = logging.getLogger("vasooli.api.system")
-
-@router.get("/health")
-async def health_check():
+async def get_health():
     """Check if the database is reachable."""
     try:
+        # Using the session dependency would be better, but for health check
+        # we want to verify the raw connection pool is working.
+        # We use a simple SELECT 1 query.
+        from .deps import AsyncSessionLocal
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
             return {"status": "healthy", "database": "connected"}
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        logging.error(f"Health check failed: {e}")
         return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
 
 @router.post("/run-test/{script_key}")

@@ -10,7 +10,6 @@ from ..models import RecoveryEvent, PromiseToPay, AuditLog
 from ..schemas.event import RecoveryEventRead
 from ..schemas.common import PaginatedResponse
 from ..schemas.promise import PromiseToPayRead
-from ..schemas.audit import AuditLogRead
 
 router = APIRouter(prefix="/recovery-events", tags=["Recovery Events"])
 
@@ -83,7 +82,7 @@ async def get_event_detail(record_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Recovery event not found")
     return event
 
-@router.get("/{record_id}/audit", response_model=List[AuditLogRead])
+@router.get("/{record_id}/audit", response_model=List[AuditLogRead]) # Need to define AuditLogRead in response_model
 async def get_event_audit(
     record_id: str,
     limit: int = 50,
