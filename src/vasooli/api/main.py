@@ -13,7 +13,7 @@ import logging
 
 from .database import settings
 from .deps import engine
-from .routes import events, system
+from .routes import events, system, webhooks, voice
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("vasooli.api")
@@ -57,6 +57,8 @@ app.add_middleware(
 # Register Routers
 app.include_router(events.router)
 app.include_router(system.router)
+app.include_router(webhooks.router)
+app.include_router(voice.router)
 
 @app.get("/")
 async def root():
