@@ -63,6 +63,17 @@ def evaluate(event: FailureEvent, root_cause: RootCause) -> Decision:
         if escalate:
             decision.tier = Tier.VOICE
             decision.expected_recovery_inr = expected_recovery
+
+    # B2B Gentler Override: Use a softer touch for B2B receivables
+    from ..models import Category
+    if event.category == Category.B2B_RECEIVABLE:
+        if decision.tier == Tier.RETRY and decision.retry_after_minutes:
+            decision.retry_after_minutes *= 2
+        if decision.tier == Tier.VOICE:
+            decision.tier = Tier.WHATSAPP
+            decision.reason += " (Downgraded from Voice for B2B)"
+        decision.reason += " [B2B Gentler Escalation]"
+
     return decision
 
 

@@ -20,13 +20,21 @@ async def main():
 
     try:
         for file_path in migration_files:
-            print(f"Executing {file_path}...")
-            sql = Path(file_path).read_text()
-            await conn.execute(sql)
-            print(f"Successfully applied {file_path}")
-        print("\n✅ All migrations applied successfully.")
+            try:
+                print(f"Executing {file_path}...")
+                sql = Path(file_path).read_text()
+                # Use a separate transaction for each file
+                async with conn.transaction():
+                    await conn.execute(sql)
+                print(f"Successfully applied {file_path}")
+            except Exception as e:
+                if "already exists" in str(e).lower():
+                    print(f"Notice: Column already exists in {file_path}, skipping.")
+                else:
+                    print(f"Error applying {file_path}: {e}")
+        print("\nAll migrations processed.")
     except Exception as e:
-        print(f"❌ Migration failed: {e}")
+        print(f"Global migration failure: {e}")
     finally:
         await conn.close()
 

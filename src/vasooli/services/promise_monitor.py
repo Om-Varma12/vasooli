@@ -74,7 +74,7 @@ class PromiseMonitor:
                     audit = AuditLog()
 
                     # Run through the pipeline
-                    await run_one(failure_event, audit)
+                    run_one(failure_event, audit)
                     count += 1
 
             await db.commit()

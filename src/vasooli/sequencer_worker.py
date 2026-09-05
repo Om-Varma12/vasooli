@@ -12,6 +12,7 @@ from sqlalchemy import select
 from .api.deps import AsyncSessionLocal
 from .api.models import RecoveryEvent
 from .services.sequencer_service import SequencerService
+from .services.promise_monitor import PromiseMonitor
 from .orchestrator import run_one
 from .audit.audit_log import AuditLog
 from .models import FailureEvent
@@ -96,6 +97,12 @@ async def main():
     while True:
         try:
             await process_due_events()
+
+            # Monitor broken promises and re-trigger pipeline
+            async with AsyncSessionLocal() as session:
+                broken_count = await PromiseMonitor.check_broken_promises(session)
+                if broken_count:
+                    logger.info(f"Promise monitor re-triggered {broken_count} broken promises.")
         except Exception as e:
             logger.error(f"Error in sequencer loop: {e}")
 

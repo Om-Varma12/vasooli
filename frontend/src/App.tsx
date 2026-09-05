@@ -19,6 +19,8 @@ function App() {
   const [recoveryData, setRecoveryData] = useState<RecoveryRecord[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<RecoveryRecord | null>(null);
+  const [selectedPromise, setSelectedPromise] = useState<any>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [isAuditLoading, setIsAuditLoading] = useState(false);
 
@@ -37,7 +39,25 @@ function App() {
       const eventsJson = await eventsRes.json();
       const statsJson = await statsRes.json();
 
-      setRecoveryData(eventsJson.data || []);
+      // Map API snake_case to Frontend camelCase
+      const mappedData = (eventsJson.items || []).map((rec: any) => ({
+        id: rec.record_id,
+        customer: rec.customer_id,
+        amount: `₹${rec.amount_inr.toLocaleString()}`,
+        rootCause: rec.root_cause,
+        channel: rec.channel,
+        retries: rec.retry_count?.toString() || "0",
+        message: rec.message_or_transcript || "No message sent",
+        status: rec.status === 'recovered' ? 'Recovered' :
+               rec.status === 'stopped' ? 'Stopped' :
+               rec.status === 'unresolved' ? 'Unresolved' : 'Pending',
+        promiseCaptured: rec.promise_captured ? '✓' : '—',
+        recovery_state: rec.recovery_state,
+        next_retry_at: rec.next_retry_at,
+        last_failure_reason: rec.last_failure_reason,
+      }));
+
+      setRecoveryData(mappedData);
       setStats(statsJson);
     } catch (e) {
       console.error("Failed to fetch recovery data:", e);
@@ -61,9 +81,26 @@ function App() {
     }
   };
 
+  const fetchPromises = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/recovery-events/${id}/promises`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setSelectedPromise(data[0]);
+      } else {
+        setSelectedPromise(null);
+      }
+    } catch (e) {
+      console.error("Failed to fetch promises:", e);
+    }
+  };
+
   const handleSelectRecord = (id: string) => {
+    const record = recoveryData.find(r => r.id === id);
     setSelectedRecordId(id);
+    setSelectedRecord(record);
     fetchAuditLogs(id);
+    fetchPromises(id);
   };
 
   const handleRunTest = async (id: string) => {
@@ -147,9 +184,15 @@ function App() {
 
       <AuditPanel
         recordId={selectedRecordId}
+        record={selectedRecord}
+        promise={selectedPromise}
         logs={auditLogs}
         isLoading={isAuditLoading}
-        onClose={() => setSelectedRecordId(null)}
+        onClose={() => {
+          setSelectedRecordId(null);
+          setSelectedRecord(null);
+          setSelectedPromise(null);
+        }}
       />
 
       <button className="fixed bottom-5 right-7 z-40 bg-ink hover:bg-slate-950 text-white rounded-full px-5 py-3 text-xs font-semibold transition-colors">

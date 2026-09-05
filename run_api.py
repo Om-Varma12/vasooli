@@ -9,4 +9,4 @@ if sys.platform == 'win32':
 if __name__ == "__main__":
     # Necessary for Windows multiprocessing/reload
     multiprocessing.freeze_support()
-    uvicorn.run("vasooli.api.main:app", host="0.0.0.0", port=8001, reload=True)
+    uvicorn.run("vasooli.api.main:app", host="127.0.0.1", port=8001, reload=True)
