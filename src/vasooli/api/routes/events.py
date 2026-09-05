@@ -10,8 +10,39 @@ from ..models import RecoveryEvent, PromiseToPay, AuditLog
 from ..schemas.event import RecoveryEventRead
 from ..schemas.common import PaginatedResponse
 from ..schemas.promise import PromiseToPayRead
+from ..schemas.audit import AuditLogRead
 
 router = APIRouter(prefix="/recovery-events", tags=["Recovery Events"])
+
+@router.get("/stats")
+async def get_recovery_stats(db: AsyncSession = Depends(get_db)):
+    """
+    Returns aggregated statistics for the recovery batch.
+    """
+    # Total Amount at Risk
+    res_total = await db.execute(select(func.sum(RecoveryEvent.amount_inr)))
+    total_at_risk = res_total.scalar() or 0.0
+
+    # Total Recovered
+    res_rec = await db.execute(
+        select(func.sum(RecoveryEvent.amount_recovered_inr))
+        .where(RecoveryEvent.status == "recovered")
+    )
+    total_recovered = res_rec.scalar() or 0.0
+
+    # State Distribution
+    res_dist = await db.execute(
+        select(RecoveryEvent.recovery_state, func.count(RecoveryEvent.record_id))
+        .group_by(RecoveryEvent.recovery_state)
+    )
+    dist = {row[0]: row[1] for row in res_dist.all()}
+
+    return {
+        "total_amount_at_risk": float(total_at_risk),
+        "total_recovered": float(total_recovered),
+        "recovery_rate": (total_recovered / total_at_risk * 100) if total_at_risk > 0 else 0,
+        "state_distribution": dist
+    }
 
 @router.get("/", response_model=PaginatedResponse[RecoveryEventRead])
 async def get_recovery_events(

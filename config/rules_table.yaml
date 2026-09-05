@@ -52,6 +52,16 @@ rules:
         WhatsApp re-authorization nudge, then evaluating voice escalation.
 
   - match:
+      root_cause: broken_promise
+    action:
+      tier: whatsapp
+      then_evaluate_voice_escalation: true
+      reason_template: >-
+        User previously promised to pay but did not. Sending a follow-up
+        WhatsApp nudge first. If this is a repeated broken promise,
+        voice escalation will be evaluated.
+
+  - match:
       root_cause: unknown
     action:
       tier: whatsapp
@@ -59,10 +69,6 @@ rules:
       reason_template: >-
         Root cause could not be classified by rule or LLM with sufficient confidence;
         defaulting to a WhatsApp nudge and evaluating voice escalation.
-
-  # No entry for cancellation_intent on purpose: it never reaches this table. It's caught
-  # by the cancellation gate in the classify layer AND re-checked as decide-layer guard
-  # clause #1, before this file is consulted. See guard_clauses.py.
 
 # Voice escalation is evaluated only for records this table routes to `whatsapp` with
 # `then_evaluate_voice_escalation: true`. It is its own gated sub-decision, not a tier a

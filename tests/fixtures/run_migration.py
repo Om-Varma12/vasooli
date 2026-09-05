@@ -13,6 +13,7 @@ async def main():
         "migrations/001_init_recovery_tracking.sql",
         "migrations/002_add_raw_payload.sql",
         "migrations/003_add_phone_number.sql",
+        "migrations/004_add_sequencer_fields.sql",
     ]
 
     conn = await asyncpg.connect(DATABASE_URL)

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String, Numeric, Integer, Boolean, DateTime, ForeignKey, func
-from sqlalchemy.sasyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from typing import Optional
 
@@ -18,12 +18,18 @@ class RecoveryEvent(Base):
     channel: Mapped[str] = mapped_column(String)
     tier: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, index=True)
-    retry_count_so_far: Mapped[Optional[int]] = mapped_column(Integer)
+    retry_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
     message_or_transcript: Mapped[Optional[str]] = mapped_column(String)
     reason: Mapped[Optional[str]] = mapped_column(String)
     amount_recovered_inr: Mapped[float] = mapped_column(Numeric, default=0.0)
     promise_captured: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Mandate Sequencer Fields
+    recovery_state: Mapped[str] = mapped_column(String, default="PENDING", index=True)
+    next_retry_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), index=True)
+    last_failure_reason: Mapped[Optional[str]] = mapped_column(String)
+
 
 class PromiseToPay(Base):
     __tablename__ = "promise_to_pay"

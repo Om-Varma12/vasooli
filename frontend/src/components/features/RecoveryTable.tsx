@@ -6,9 +6,10 @@ import { Search } from 'lucide-react';
 interface RecoveryTableProps {
   data: RecoveryRecord[];
   onRunTest: (id: string) => Promise<void>;
+  onSelectRecord: (id: string) => void;
 }
 
-export const RecoveryTable: React.FC<RecoveryTableProps> = ({ data, onRunTest }) => {
+export const RecoveryTable: React.FC<RecoveryTableProps> = ({ data, onRunTest, onSelectRecord }) => {
   return (
     <section className="bg-white border border-[#e5e7eb] rounded-xl overflow-hidden shadow-sm">
       <div className="flex justify-between items-center p-4 h-[60px] border-b border-[#e5e7eb] bg-white">
@@ -49,7 +50,7 @@ export const RecoveryTable: React.FC<RecoveryTableProps> = ({ data, onRunTest })
           </thead>
           <tbody>
             {data.map((record) => (
-              <RecoveryTableRow key={record.id} record={record} onRunTest={onRunTest} />
+              <RecoveryTableRow key={record.id} record={record} onRunTest={onRunTest} onSelectRecord={onSelectRecord} />
             ))}
           </tbody>
         </table>

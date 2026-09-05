@@ -86,12 +86,32 @@ def run_one(event: FailureEvent, audit: AuditLog) -> dict:
     audit.write(event.record_id, "outcome", outcome_detail)
     record_outcome(event.customer_id, result["channel"], result["succeeded"])
 
-    # 6. Persist Final Recovery Event
+    # Mandate Sequencer Integration: Determine next state and retry time
+    from .services.sequencer_service import SequencerService
+
+    recovery_state = "RECOVERED" if result["succeeded"] else "RETRYING"
+    # If not succeeded, check if we should actually stop (max retries)
+    if not result["succeeded"]:
+        # Create a mock object that matches RecoveryEvent for the service logic
+        class MockEvent:
+            def __init__(self, count, reason):
+                self.retry_count = count
+                self.last_failure_reason = reason
+
+        mock_event = MockEvent(event.retry_count_so_far, result.get("detail", decision.reason))
+        recovery_state = SequencerService.determine_next_state(mock_event)
+
+        next_retry_at = None
+        if recovery_state == "RETRYING":
+            next_retry_at = SequencerService.calculate_next_retry(mock_event.last_failure_reason)
+    else:
+        next_retry_at = None
+
     # Derive status per tables.md: succeeded -> recovered; stopped -> stopped; handoff & not succeeded -> unresolved; else pending
     status = "pending"
     if result["succeeded"]:
         status = "recovered"
-    elif decision.tier == Tier.STOPPED:
+    elif recovery_state == "STOPPED":
         status = "stopped"
     elif decision.tier == Tier.HUMAN_HANDOFF and not result["succeeded"]:
         status = "unresolved"
@@ -111,7 +131,10 @@ def run_one(event: FailureEvent, audit: AuditLog) -> dict:
         amount_recovered=result["amount_recovered_inr"],
         promise_captured=result.get("promise_captured", False),
         raw_payload=event.raw_payload,
-        phone_number=event.phone_number
+        phone_number=event.phone_number,
+        recovery_state=recovery_state,
+        next_retry_at=next_retry_at,
+        last_failure_reason=result.get("detail", decision.reason)
     )
 
     return {
@@ -129,8 +152,6 @@ def run_batch(path: Path = BATCH_PATH, budget: dict[str, float] = None) -> list[
     """
     Process all events in the batch. Per-record exceptions are caught and written
     to the DLQ — one bad record no longer aborts the whole batch.
-
-    If budget is provided, it ranks and filters decisions before execution.
     """
     audit = AuditLog()
     events = load_batch(path)
@@ -162,8 +183,6 @@ def run_batch(path: Path = BATCH_PATH, budget: dict[str, float] = None) -> list[
     processed_events = []
     for event in events:
         try:
-            # We need a modified version of run_one that doesn't call execute()
-            # For now, let's just do the logic here
             history = get_history(event.customer_id)
             event.past_bounce_count = history["past_bounce_count"]
             event.past_bounce_reasons = history["past_bounce_reasons"]
@@ -193,7 +212,6 @@ def run_batch(path: Path = BATCH_PATH, budget: dict[str, float] = None) -> list[
     for event, decision in processed_events:
         if event.record_id in allowed_ids:
             try:
-                # Execute only the allowed decisions
                 result = execute(event, decision)
                 audit.write(event.record_id, f"execute:{result['channel']}", result["detail"])
                 audit.write(event.record_id, "outcome", f"succeeded={result['succeeded']} amount_recovered_inr={result['amount_recovered_inr']}")

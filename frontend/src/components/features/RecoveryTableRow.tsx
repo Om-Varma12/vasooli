@@ -6,9 +6,10 @@ import type { RecoveryRecord } from '../../types/recovery';
 interface RecoveryTableRowProps {
   record: RecoveryRecord;
   onRunTest: (id: string) => Promise<void>;
+  onSelectRecord: (id: string) => void;
 }
 
-export const RecoveryTableRow: React.FC<RecoveryTableRowProps> = ({ record, onRunTest }) => {
+export const RecoveryTableRow: React.FC<RecoveryTableRowProps> = ({ record, onRunTest, onSelectRecord }) => {
   const [isRunning, setIsRunning] = useState(false);
 
   const handleRunTest = async () => {
@@ -25,12 +26,16 @@ export const RecoveryTableRow: React.FC<RecoveryTableRowProps> = ({ record, onRu
     Pending: 'pending' as const,
     Unresolved: 'unresolved' as const,
     Stopped: 'stopped' as const,
+    Retrying: 'pending' as const, // Use pending for retrying or add new variant
   };
 
   return (
     <tr className="group transition-colors duration-150 bg-white hover:bg-[#f8fafc] border-b border-[#f1f3f5]">
       <td className="p-3 whitespace-nowrap">
-        <span className="text-[#2563eb] font-medium cursor-pointer hover:text-blue-700 transition-colors">
+        <span
+          onClick={() => onSelectRecord(record.id)}
+          className="text-[#2563eb] font-medium cursor-pointer hover:text-blue-700 transition-colors"
+        >
           {record.id}
         </span>
       </td>
@@ -53,7 +58,11 @@ export const RecoveryTableRow: React.FC<RecoveryTableRowProps> = ({ record, onRu
         {record.message}
       </td>
       <td className="p-3 whitespace-nowrap">
-        <Badge variant={statusVariant[record.status]}>
+        <Badge
+          variant={statusVariant[record.status as keyof typeof statusVariant] || 'pending'}
+          title={record.status === 'Stopped' ? `Reason: ${record.last_failure_reason || 'Max retries reached'}` :
+                 record.status === 'Retrying' ? `Next retry: ${record.next_retry_at || 'TBD'}` : ''}
+        >
           {record.status}
         </Badge>
       </td>
